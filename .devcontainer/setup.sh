@@ -26,12 +26,19 @@ if ! command -v cargo-build-sbf >/dev/null 2>&1; then
   cargo install cargo-build-sbf --version 4.1.0 --locked
 fi
 
-# Anchor CLI 1.2.1 via avm (fallback to direct cargo install)
-if ! command -v avm >/dev/null 2>&1; then
-  cargo install avm --locked --force
+# Anchor CLI 1.2.1 (binario oficial x86_64 o avm)
+if ! command -v anchor >/dev/null 2>&1; then
+  if [ "$(uname -m)" = "x86_64" ]; then
+    mkdir -p "$HOME/.cargo/bin"
+    curl -fsSL "https://github.com/otter-sec/anchor/releases/download/v1.2.1/anchor-1.2.1-x86_64-unknown-linux-gnu" \
+      -o "$HOME/.cargo/bin/anchor"
+    chmod +x "$HOME/.cargo/bin/anchor"
+  else
+    cargo install avm --locked --force
+    avm install 1.2.1
+    avm use 1.2.1
+  fi
 fi
-avm install 1.2.1
-avm use 1.2.1
 
 # Node dependencies (tests, Devnet scripts, and frontend)
 npm install

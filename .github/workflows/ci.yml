@@ -38,7 +38,7 @@ jobs:
             ~/.cargo/git
             ~/.local/share/solana
             ~/.cache/solana
-          key: ${{ runner.os }}-agave-4.1.2-anchor-1.2.1-rust-1.89.0-v1
+          key: ${{ runner.os }}-agave-4.1.2-anchor-1.2.1-rust-1.89.0-v2
 
       - name: Install Agave CLI 4.1.2 & cargo-build-sbf
         run: |
@@ -59,8 +59,11 @@ jobs:
 
       - name: Install Anchor CLI 1.2.1
         run: |
-          if ! command -v anchor >/dev/null 2>&1; then
-            cargo install anchor-cli --version 1.2.1 --locked
+          if ! [ -x "$HOME/.cargo/bin/anchor" ]; then
+            mkdir -p "$HOME/.cargo/bin"
+            curl -fsSL "https://github.com/otter-sec/anchor/releases/download/v1.2.1/anchor-1.2.1-x86_64-unknown-linux-gnu" \
+              -o "$HOME/.cargo/bin/anchor"
+            chmod +x "$HOME/.cargo/bin/anchor"
           fi
           anchor --version
           solana --version
@@ -68,7 +71,7 @@ jobs:
           rustc --version
 
       - name: Save Cargo & Anchor CLI Cache
-        if: always() && steps.cache-toolchain.outputs.cache-hit != 'true'
+        if: steps.cache-toolchain.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: |
@@ -78,7 +81,7 @@ jobs:
             ~/.cargo/git
             ~/.local/share/solana
             ~/.cache/solana
-          key: ${{ runner.os }}-agave-4.1.2-anchor-1.2.1-rust-1.89.0-v1
+          key: ${{ runner.os }}-agave-4.1.2-anchor-1.2.1-rust-1.89.0-v2
 
       - name: Install JS test dependencies
         run: |
