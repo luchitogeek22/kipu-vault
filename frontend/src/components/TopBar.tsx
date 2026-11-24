@@ -74,19 +74,19 @@ export function TopBar({
                 Devnet
               </span>
             </div>
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-zinc-300">
               Guardrails on-chain en Solana · Limita el radio de daño del agente
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           {agentSolBalance !== null && (
             <div
               className={`rounded-lg border px-3 py-1.5 font-mono text-xs ${
                 lowSolWarning
                   ? "border-kipu-crimson/60 bg-kipu-crimson/10 text-kipu-crimson"
-                  : "border-kipu-border bg-kipu-bg text-zinc-300"
+                  : "border-kipu-border bg-kipu-bg text-zinc-200"
               }`}
             >
               Agente SOL: {Number(agentSolBalance).toFixed(3)}
@@ -95,7 +95,7 @@ export function TopBar({
           )}
 
           <div className="rounded-lg border border-kipu-border bg-kipu-bg px-3 py-1.5">
-            <span className="block text-[10px] uppercase tracking-wider text-zinc-500">
+            <span className="block text-[11px] uppercase tracking-wider text-zinc-300">
               Balance de la bóveda
             </span>
             <span className="font-mono text-sm font-semibold text-zinc-100">
@@ -108,10 +108,10 @@ export function TopBar({
             type="button"
             disabled={!connectedWallet || !vault || signingIn}
             onClick={() => void onSignIn()}
-            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition ${
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
               isAuthenticated
-                ? "border-kipu-emerald/50 bg-kipu-emerald/15 text-kipu-emerald"
-                : "border-kipu-gold/50 bg-kipu-gold/15 text-kipu-gold hover:bg-kipu-gold/25 disabled:cursor-not-allowed disabled:opacity-40"
+                ? "border-kipu-emerald/60 bg-kipu-emerald/15 text-kipu-emerald"
+                : "border-kipu-gold bg-kipu-gold text-zinc-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/70 disabled:text-zinc-500"
             }`}
           >
             {isAuthenticated ? (
@@ -127,29 +127,48 @@ export function TopBar({
             )}
           </button>
 
-          <button
-            type="button"
-            disabled={!isOwner || freezing}
-            onClick={() => void onToggleFreeze()}
-            title="Emergency Freeze: bloquea únicamente al agente; el owner siempre puede retirar fondos"
-            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
-              vault?.isFrozen
-                ? "border-kipu-crimson bg-kipu-crimson text-white hover:bg-red-600"
-                : "border-kipu-crimson/50 bg-kipu-crimson/15 text-kipu-crimson hover:bg-kipu-crimson/25 disabled:cursor-not-allowed disabled:opacity-40"
-            }`}
-          >
-            {vault?.isFrozen ? (
-              <>
-                <Snowflake className="h-4 w-4" />
-                {freezing ? "Procesando..." : "Congelado · Descongelar"}
-              </>
-            ) : (
-              <>
-                <ShieldAlert className="h-4 w-4" />
-                {freezing ? "Procesando..." : "Activa · Congelar"}
-              </>
-            )}
-          </button>
+          {vault && (
+            <div className="inline-flex items-center gap-1.5 rounded-lg border border-kipu-border bg-kipu-bg p-1">
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold ${
+                  vault.isFrozen
+                    ? "bg-kipu-crimson/15 text-red-300"
+                    : "bg-kipu-emerald/15 text-kipu-emerald"
+                }`}
+              >
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    vault.isFrozen ? "bg-kipu-crimson" : "bg-kipu-emerald"
+                  }`}
+                />
+                {vault.isFrozen ? "Congelada" : "Activa"}
+              </span>
+
+              <button
+                type="button"
+                disabled={!isOwner || freezing}
+                onClick={() => void onToggleFreeze()}
+                title="Emergency Freeze: bloquea únicamente al agente; el owner siempre puede retirar fondos"
+                className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
+                  vault.isFrozen
+                    ? "border-kipu-emerald/60 bg-kipu-emerald/15 text-kipu-emerald hover:bg-kipu-emerald/25"
+                    : "border-kipu-crimson/60 bg-kipu-crimson/15 text-red-200 hover:bg-kipu-crimson/25"
+                } disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/70 disabled:text-zinc-500`}
+              >
+                {vault.isFrozen ? (
+                  <>
+                    <Snowflake className="h-3.5 w-3.5" />
+                    {freezing ? "Procesando..." : "Descongelar"}
+                  </>
+                ) : (
+                  <>
+                    <ShieldAlert className="h-3.5 w-3.5" />
+                    {freezing ? "Procesando..." : "Congelar"}
+                  </>
+                )}
+              </button>
+            </div>
+          )}
 
           {mounted ? (
             <WalletMultiButton />

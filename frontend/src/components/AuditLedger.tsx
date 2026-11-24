@@ -89,7 +89,7 @@ export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs">
           <thead>
-            <tr className="border-b border-kipu-border text-[11px] uppercase tracking-wider text-zinc-500">
+            <tr className="border-b border-kipu-border text-xs font-semibold uppercase tracking-wider text-zinc-300">
               <th className="py-2 pr-3">Estado</th>
               <th className="py-2 pr-3">Monto</th>
               <th className="py-2 pr-3">Audit hash (SHA-256)</th>
@@ -102,7 +102,7 @@ export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
               <tr>
                 <td
                   colSpan={5}
-                  className="py-6 text-center text-xs text-zinc-500"
+                  className="py-6 text-center text-xs text-zinc-300"
                 >
                   Aún no hay registros de auditoría para esta bóveda.
                 </td>
@@ -116,19 +116,19 @@ export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
                     <td className="py-2 pr-3">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span
-                          className={`inline-block rounded border px-1.5 py-0.5 font-mono text-[11px] font-medium ${statusBadgeClasses(
+                          className={`inline-block rounded border px-1.5 py-0.5 font-mono text-xs font-medium ${statusBadgeClasses(
                             entry.status
                           )}`}
                         >
                           {entry.status}
                         </span>
                         {isPreflight && (
-                          <span className="rounded border border-kipu-crimson/40 bg-kipu-bg px-1.5 py-0.5 text-[10px] text-red-300">
+                          <span className="rounded border border-kipu-crimson/40 bg-kipu-bg px-1.5 py-0.5 text-xs text-red-200">
                             sin firma
                           </span>
                         )}
                         {entry.error_name && (
-                          <span className="font-mono text-[10px] text-zinc-400">
+                          <span className="font-mono text-xs text-zinc-300">
                             ({entry.error_name})
                           </span>
                         )}
@@ -158,7 +158,7 @@ export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
                         </a>
                       ) : (
                         <span
-                          className="text-[11px] text-zinc-400"
+                          className="text-xs text-zinc-300"
                           title="No existe transacción enviada a Solana"
                         >
                           audit id: {truncateMiddle(entry.id, 6, 4)} (sin tx
@@ -180,7 +180,7 @@ export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
                             ? "Verificar hash, monto y bóveda contra Solana"
                             : "Las filas sin firma no son verificables on-chain"
                         }
-                        className="inline-flex items-center gap-1 rounded-md border border-kipu-border bg-kipu-bg px-2.5 py-1 text-[11px] font-medium text-zinc-200 hover:border-kipu-emerald/60 hover:text-kipu-emerald disabled:cursor-not-allowed disabled:opacity-35"
+                        className="inline-flex items-center gap-1 rounded-md border border-kipu-border bg-kipu-bg px-2.5 py-1 text-xs font-medium text-zinc-200 hover:border-kipu-emerald/60 hover:text-kipu-emerald disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-zinc-900/60 disabled:text-zinc-500"
                       >
                         <ShieldCheck className="h-3.5 w-3.5" />
                         {verifyingSig === entry.tx_signature

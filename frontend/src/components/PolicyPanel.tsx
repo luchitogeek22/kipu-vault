@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -14,6 +14,8 @@ import {
 import {
   explorerAddressUrl,
   formatBaseUnitsAsUsdc,
+  isValidSolanaPubkey,
+  parseUsdcToBaseUnits,
   truncateMiddle,
 } from "@/lib/format";
 import type { DecodedVaultState } from "@/lib/kipuVault";
@@ -21,6 +23,7 @@ import type { DecodedVaultState } from "@/lib/kipuVault";
 interface PolicyPanelProps {
   mintInput: string;
   onChangeMintInput: (val: string) => void;
+  defaultAgentPubkey: string;
   vault: DecodedVaultState | null;
   connectedWallet: string | null;
   loadingVault: boolean;
@@ -46,6 +49,7 @@ interface PolicyPanelProps {
 export function PolicyPanel({
   mintInput,
   onChangeMintInput,
+  defaultAgentPubkey,
   vault,
   connectedWallet,
   loadingVault,
@@ -58,9 +62,15 @@ export function PolicyPanel({
   onRemoveRecipient,
   busyAction,
 }: PolicyPanelProps) {
-  const [initAgent, setInitAgent] = useState("");
+  const [initAgent, setInitAgent] = useState(defaultAgentPubkey);
   const [initMaxPerTx, setInitMaxPerTx] = useState("10");
   const [initDailyLimit, setInitDailyLimit] = useState("50");
+
+  useEffect(() => {
+    if (!initAgent.trim() && defaultAgentPubkey) {
+      setInitAgent(defaultAgentPubkey);
+    }
+  }, [defaultAgentPubkey, initAgent]);
 
   const [depositAmount, setDepositAmount] = useState("100");
   const [withdrawAmount, setWithdrawAmount] = useState("10");
@@ -73,6 +83,58 @@ export function PolicyPanel({
 
   const isOwner = Boolean(
     connectedWallet && vault && connectedWallet === vault.owner
+  );
+
+  let initValidationError: string | null = null;
+  if (!connectedWallet) {
+    initValidationError = "Conecta tu wallet Phantom para crear la bóveda.";
+  } else if (!isValidSolanaPubkey(mintInput)) {
+    initValidationError = "Ingresa un Mint SPL base58 válido.";
+  } else if (!isValidSolanaPubkey(initAgent)) {
+    initValidationError = "Ingresa una pubkey de Agente base58 válida.";
+  } else if (initAgent.trim() === connectedWallet) {
+    initValidationError = "El agente debe ser distinto al owner.";
+  } else {
+    try {
+      const txCap = parseUsdcToBaseUnits(initMaxPerTx);
+      const dayCap = parseUsdcToBaseUnits(initDailyLimit);
+      if (dayCap < txCap) {
+        initValidationError = "El límite diario debe ser >= tope por tx.";
+      }
+    } catch (err) {
+      initValidationError =
+        err instanceof Error ? err.message : "Montos inválidos.";
+    }
+  }
+  const canCreateVault = initValidationError === null && busyAction === null;
+
+  let canDeposit = false;
+  try {
+    canDeposit = isOwner && busyAction === null && parseUsdcToBaseUnits(depositAmount) > 0n;
+  } catch {
+    canDeposit = false;
+  }
+
+  let canWithdraw = false;
+  try {
+    const wUnits = parseUsdcToBaseUnits(withdrawAmount);
+    canWithdraw =
+      isOwner &&
+      busyAction === null &&
+      vault !== null &&
+      wUnits > 0n &&
+      wUnits <= vault.vaultTokenBalance;
+  } catch {
+    canWithdraw = false;
+  }
+
+  const canAddRecipient = Boolean(
+    isOwner &&
+      vault &&
+      vault.recipientCount < 8 &&
+      isValidSolanaPubkey(newRecipient) &&
+      !vault.allowedRecipients.includes(newRecipient.trim()) &&
+      busyAction === null
   );
 
   const dailyPct =
@@ -115,7 +177,7 @@ export function PolicyPanel({
 
       {/* Mint selector */}
       <div className="rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
-        <label className="mb-1 block text-[11px] font-medium text-zinc-400">
+        <label className="mb-1 block text-xs font-medium text-zinc-300">
           Mint Mock USDC (SPL clásico)
         </label>
         <input
@@ -123,10 +185,10 @@ export function PolicyPanel({
           value={mintInput}
           onChange={(e) => onChangeMintInput(e.target.value)}
           placeholder="Dirección base58 del Mint SPL"
-          className="w-full rounded-md border border-kipu-border bg-kipu-card px-2.5 py-1.5 font-mono text-xs text-zinc-100 placeholder:text-zinc-600 focus:border-kipu-gold focus:outline-none"
+          className="w-full rounded-md border border-kipu-border bg-kipu-card px-2.5 py-1.5 font-mono text-xs text-zinc-100 placeholder:text-zinc-500 focus:border-kipu-gold focus:outline-none"
         />
         {vault && (
-          <div className="mt-1.5 flex items-center justify-between text-[11px] text-zinc-400">
+          <div className="mt-1.5 flex items-center justify-between text-xs text-zinc-300">
             <span>PDA Bóveda:</span>
             <a
               href={explorerAddressUrl(vault.address)}
@@ -143,19 +205,24 @@ export function PolicyPanel({
       {!vault ? (
         <div className="rounded-lg border border-kipu-gold/30 bg-kipu-bg p-2.5">
           <p className="mb-2 text-xs font-medium text-kipu-gold">
-            No existe bóveda para este owner + mint. Créala aquí:
+            No existe bóveda para este owner + mint. Créala en 1 clic:
           </p>
           <div className="space-y-2">
-            <input
-              type="text"
-              value={initAgent}
-              onChange={(e) => setInitAgent(e.target.value)}
-              placeholder="Pubkey del Agente"
-              className="w-full rounded-md border border-kipu-border bg-kipu-card px-2.5 py-1.5 font-mono text-xs text-zinc-100 placeholder:text-zinc-600 focus:border-kipu-gold focus:outline-none"
-            />
+            <div>
+              <label className="mb-1 block text-xs text-zinc-300">
+                Pubkey del Agente
+              </label>
+              <input
+                type="text"
+                value={initAgent}
+                onChange={(e) => setInitAgent(e.target.value)}
+                placeholder="Pubkey base58 del Agente"
+                className="w-full rounded-md border border-kipu-border bg-kipu-card px-2.5 py-1.5 font-mono text-xs text-zinc-100 placeholder:text-zinc-500 focus:border-kipu-gold focus:outline-none"
+              />
+            </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="mb-1 block text-[10px] text-zinc-400">
+                <label className="mb-1 block text-xs text-zinc-300">
                   Tope / tx (Mock USDC)
                 </label>
                 <input
@@ -166,7 +233,7 @@ export function PolicyPanel({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-[10px] text-zinc-400">
+                <label className="mb-1 block text-xs text-zinc-300">
                   Límite diario (Mock USDC)
                 </label>
                 <input
@@ -177,9 +244,12 @@ export function PolicyPanel({
                 />
               </div>
             </div>
+            {initValidationError && (
+              <p className="text-xs text-amber-300">{initValidationError}</p>
+            )}
             <button
               type="button"
-              disabled={!connectedWallet || busyAction !== null}
+              disabled={!canCreateVault}
               onClick={() =>
                 void onInitializeVault({
                   mint: mintInput,
@@ -188,7 +258,7 @@ export function PolicyPanel({
                   dailyLimitUsdc: initDailyLimit,
                 })
               }
-              className="w-full rounded-lg bg-kipu-gold px-3 py-2 text-xs font-semibold text-zinc-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
+              className="w-full rounded-lg bg-kipu-gold px-3 py-2 text-xs font-semibold text-zinc-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
             >
               {busyAction === "initialize"
                 ? "Creando bóveda..."
@@ -202,7 +272,7 @@ export function PolicyPanel({
           <div className="space-y-2 rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
             <div>
               <div className="mb-1 flex justify-between text-xs">
-                <span className="text-zinc-400">Ventana 24h (fija) / Límite diario</span>
+                <span className="text-zinc-300">Ventana 24h (fija) / Límite diario</span>
                 <span className="font-mono text-zinc-100">
                   {formatBaseUnitsAsUsdc(vault.spentToday, 2)} /{" "}
                   {formatBaseUnitsAsUsdc(vault.dailyLimit, 2)} Mock USDC
@@ -220,7 +290,7 @@ export function PolicyPanel({
 
             <div>
               <div className="mb-1 flex justify-between text-xs">
-                <span className="text-zinc-400">Tope por transacción</span>
+                <span className="text-zinc-300">Tope por transacción</span>
                 <span className="font-mono text-kipu-gold">
                   {formatBaseUnitsAsUsdc(vault.maxPerTx, 2)} Mock USDC
                 </span>
@@ -233,28 +303,28 @@ export function PolicyPanel({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 pt-0.5 text-[11px]">
+            <div className="grid grid-cols-2 gap-2 pt-0.5 text-xs">
               <div className="rounded border border-kipu-border bg-kipu-card px-2 py-1">
-                <span className="block text-zinc-500">Estado</span>
+                <span className="block text-zinc-400">Estado</span>
                 <span
                   className={`font-semibold ${
                     vault.isFrozen ? "text-kipu-crimson" : "text-kipu-emerald"
                   }`}
                 >
-                  {vault.isFrozen ? "CONGELADA (FROZEN)" : "ACTIVA"}
+                  {vault.isFrozen ? "Congelada (FROZEN)" : "Activa"}
                 </span>
               </div>
               <div className="rounded border border-kipu-border bg-kipu-card px-2 py-1">
-                <span className="block text-zinc-500">Ejecuciones</span>
+                <span className="block text-zinc-400">Ejecuciones</span>
                 <span className="font-mono font-semibold text-zinc-100">
                   {vault.totalExecutions.toString()}
                 </span>
               </div>
             </div>
 
-            <div className="text-[11px] text-zinc-400">
+            <div className="text-xs text-zinc-300">
               Agente:{" "}
-              <span className="font-mono text-zinc-200">
+              <span className="font-mono text-zinc-100">
                 {truncateMiddle(vault.agent, 6, 6)}
               </span>
             </div>
@@ -263,7 +333,7 @@ export function PolicyPanel({
           {/* Deposit / Withdraw */}
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-lg border border-kipu-border bg-kipu-bg p-2">
-              <label className="mb-1 block text-[11px] text-zinc-400">
+              <label className="mb-1 block text-xs text-zinc-300">
                 Depositar (Mock USDC)
               </label>
               <input
@@ -274,9 +344,9 @@ export function PolicyPanel({
               />
               <button
                 type="button"
-                disabled={!isOwner || busyAction !== null}
+                disabled={!canDeposit}
                 onClick={() => void onDeposit(depositAmount)}
-                className="inline-flex w-full items-center justify-center gap-1 rounded-md border border-kipu-emerald/50 bg-kipu-emerald/15 px-2 py-1.5 text-xs font-medium text-kipu-emerald hover:bg-kipu-emerald/25 disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex w-full items-center justify-center gap-1 rounded-md border border-kipu-emerald/50 bg-kipu-emerald/15 px-2 py-1.5 text-xs font-medium text-kipu-emerald hover:bg-kipu-emerald/25 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/70 disabled:text-zinc-500"
               >
                 <ArrowDownToLine className="h-3.5 w-3.5" />
                 {busyAction === "deposit" ? "..." : "Depositar"}
@@ -284,7 +354,7 @@ export function PolicyPanel({
             </div>
 
             <div className="rounded-lg border border-kipu-border bg-kipu-bg p-2">
-              <label className="mb-1 block text-[11px] text-zinc-400">
+              <label className="mb-1 block text-xs text-zinc-300">
                 Retirar (Mock USDC)
               </label>
               <input
@@ -295,9 +365,9 @@ export function PolicyPanel({
               />
               <button
                 type="button"
-                disabled={!isOwner || busyAction !== null}
+                disabled={!canWithdraw}
                 onClick={() => void onWithdraw(withdrawAmount)}
-                className="inline-flex w-full items-center justify-center gap-1 rounded-md border border-kipu-gold/50 bg-kipu-gold/15 px-2 py-1.5 text-xs font-medium text-kipu-gold hover:bg-kipu-gold/25 disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex w-full items-center justify-center gap-1 rounded-md border border-kipu-gold/50 bg-kipu-gold/15 px-2 py-1.5 text-xs font-medium text-kipu-gold hover:bg-kipu-gold/25 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/70 disabled:text-zinc-500"
               >
                 <ArrowUpFromLine className="h-3.5 w-3.5" />
                 {busyAction === "withdraw" ? "..." : "Retirar"}
@@ -312,7 +382,7 @@ export function PolicyPanel({
                 <Users className="h-3.5 w-3.5 text-kipu-gold" />
                 Allowlist de destinatarios
               </span>
-              <span className="font-mono text-[11px] text-zinc-400">
+              <span className="font-mono text-xs text-zinc-300">
                 {vault.recipientCount}/8
               </span>
             </div>
@@ -323,22 +393,17 @@ export function PolicyPanel({
                 value={newRecipient}
                 onChange={(e) => setNewRecipient(e.target.value)}
                 placeholder="Wallet destino (base58)"
-                className="min-w-0 flex-1 rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100 placeholder:text-zinc-600"
+                className="min-w-0 flex-1 rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100 placeholder:text-zinc-500"
               />
               <button
                 type="button"
-                disabled={
-                  !isOwner ||
-                  !newRecipient.trim() ||
-                  vault.recipientCount >= 8 ||
-                  busyAction !== null
-                }
+                disabled={!canAddRecipient}
                 onClick={() => {
                   const target = newRecipient.trim();
                   setNewRecipient("");
                   void onAddRecipient(target);
                 }}
-                className="inline-flex items-center gap-1 rounded bg-kipu-gold px-2.5 py-1 text-xs font-semibold text-zinc-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex items-center gap-1 rounded bg-kipu-gold px-2.5 py-1 text-xs font-semibold text-zinc-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
               >
                 <Plus className="h-3.5 w-3.5" />
                 Agregar
@@ -346,7 +411,7 @@ export function PolicyPanel({
             </div>
 
             {vault.allowedRecipients.length === 0 ? (
-              <p className="text-[11px] text-zinc-500">
+              <p className="text-xs text-zinc-400">
                 Sin destinatarios autorizados aún.
               </p>
             ) : (

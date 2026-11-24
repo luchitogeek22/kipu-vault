@@ -33,6 +33,7 @@ import {
   type HealthResponse,
 } from "@/lib/api";
 import { parseUsdcToBaseUnits } from "@/lib/format";
+import { FRONTEND_CONFIG } from "@/lib/config";
 import { TopBar } from "./TopBar";
 import { PolicyPanel } from "./PolicyPanel";
 import { KipuCopilot, type CopilotMessage } from "./KipuCopilot";
@@ -43,7 +44,7 @@ export function KipuDashboard() {
   const { publicKey, signMessage } = useWallet();
   const anchorWallet = useAnchorWallet();
 
-  const [mintInput, setMintInput] = useState("");
+  const [mintInput, setMintInput] = useState<string>(FRONTEND_CONFIG.demoMint);
   const [vault, setVault] = useState<DecodedVaultState | null>(null);
   const [loadingVault, setLoadingVault] = useState(false);
 
@@ -53,8 +54,12 @@ export function KipuDashboard() {
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [auditEntries, setAuditEntries] = useState<AuditLogEntry[]>([]);
 
-  const [demoRecipientAddress, setDemoRecipientAddress] = useState("");
-  const [attackerAddress, setAttackerAddress] = useState("");
+  const [demoRecipientAddress, setDemoRecipientAddress] = useState<string>(
+    FRONTEND_CONFIG.demoRecipient
+  );
+  const [attackerAddress, setAttackerAddress] = useState<string>(
+    FRONTEND_CONFIG.demoAttacker
+  );
 
   const [messages, setMessages] = useState<CopilotMessage[]>([]);
   const [sendingIntent, setSendingIntent] = useState(false);
@@ -444,6 +449,25 @@ export function KipuDashboard() {
     }
   };
 
+  const isOwner = Boolean(
+    connectedWallet && vault && connectedWallet === vault.owner
+  );
+  const hasFunds = Boolean(vault && vault.vaultTokenBalance > 0n);
+  const hasAllowlist = Boolean(vault && vault.recipientCount > 0);
+
+  const flowSteps = [
+    { id: 1, label: "1. Conectar", done: Boolean(connectedWallet) },
+    { id: 2, label: "2. Crear bóveda", done: Boolean(vault) },
+    { id: 3, label: "3. Iniciar sesión", done: Boolean(jwtToken) },
+    { id: 4, label: "4. Depositar y allowlist", done: hasFunds && hasAllowlist },
+    {
+      id: 5,
+      label: "5. Demo en vivo",
+      done: Boolean(jwtToken && hasFunds && hasAllowlist && auditEntries.length > 0),
+    },
+  ];
+  const firstIncomplete = flowSteps.find((s) => !s.done)?.id ?? 5;
+
   return (
     <div className="min-h-screen bg-kipu-bg text-zinc-100">
       <TopBar
@@ -459,6 +483,53 @@ export function KipuDashboard() {
       />
 
       <main className="mx-auto max-w-[1440px] space-y-3 px-4 py-3.5 sm:px-6">
+        {/* Guided Demo Day Stepper */}
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-kipu-border bg-kipu-card px-3.5 py-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            {flowSteps.map((step) => {
+              const isCurrent = step.id === firstIncomplete;
+              return (
+                <span
+                  key={step.id}
+                  className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium ${
+                    step.done
+                      ? "border-kipu-emerald/40 bg-kipu-emerald/10 text-kipu-emerald"
+                      : isCurrent
+                        ? "border-kipu-gold bg-kipu-gold/15 font-semibold text-kipu-gold"
+                        : "border-kipu-border bg-kipu-bg text-zinc-400"
+                  }`}
+                >
+                  <span>{step.done ? "✓" : "○"}</span>
+                  <span>{step.label}</span>
+                </span>
+              );
+            })}
+          </div>
+
+          {firstIncomplete === 3 && vault && !jwtToken && (
+            <button
+              type="button"
+              disabled={signingIn}
+              onClick={() => void handleSignIn()}
+              className="rounded-md bg-kipu-gold px-3 py-1 text-xs font-semibold text-zinc-950 hover:bg-amber-400 disabled:opacity-50"
+            >
+              {signingIn ? "Firmando SIWS..." : "Firmar SIWS ahora →"}
+            </button>
+          )}
+          {firstIncomplete === 4 && (
+            <span className="text-xs font-medium text-kipu-gold">
+              Falta {!hasFunds ? "depositar Mock USDC" : ""}
+              {!hasFunds && !hasAllowlist ? " y " : ""}
+              {!hasAllowlist ? "agregar destinatario a allowlist" : ""} en Políticas
+            </span>
+          )}
+          {firstIncomplete === 5 && (
+            <span className="text-xs font-medium text-kipu-emerald">
+              Listo para presentar pasos 1 → 4 en Copilot
+            </span>
+          )}
+        </div>
+
         {bannerError && (
           <div className="flex items-center justify-between rounded-lg border border-kipu-crimson/60 bg-kipu-crimson/10 px-4 py-2 text-xs text-red-200">
             <span>{bannerError}</span>
@@ -490,6 +561,7 @@ export function KipuDashboard() {
             <PolicyPanel
               mintInput={mintInput}
               onChangeMintInput={setMintInput}
+              defaultAgentPubkey={health?.agent_pubkey ?? ""}
               vault={vault}
               connectedWallet={connectedWallet}
               loadingVault={loadingVault}
@@ -508,7 +580,11 @@ export function KipuDashboard() {
             <KipuCopilot
               demoMode={Boolean(health?.demo_mode)}
               isAuthenticated={Boolean(jwtToken)}
+              isOwner={isOwner}
               isFrozen={Boolean(vault?.isFrozen)}
+              hasFunds={hasFunds}
+              freezing={freezing}
+              onToggleFreeze={handleToggleFreeze}
               vaultAddress={vault?.address ?? null}
               demoRecipientAddress={demoRecipientAddress}
               onChangeDemoRecipient={setDemoRecipientAddress}

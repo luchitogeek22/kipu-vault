@@ -8,11 +8,16 @@ import {
   Flame,
   Send,
   ShieldAlert,
+  Snowflake,
   Sparkles,
   UserCheck,
 } from "lucide-react";
 import type { ExecuteIntentRequest, ExecuteIntentResponse } from "@/lib/api";
-import { explorerTxUrl, truncateMiddle } from "@/lib/format";
+import {
+  explorerTxUrl,
+  isValidSolanaPubkey,
+  truncateMiddle,
+} from "@/lib/format";
 
 export interface CopilotMessage {
   id: string;
@@ -25,7 +30,11 @@ export interface CopilotMessage {
 interface KipuCopilotProps {
   demoMode: boolean;
   isAuthenticated: boolean;
+  isOwner: boolean;
   isFrozen: boolean;
+  hasFunds: boolean;
+  freezing: boolean;
+  onToggleFreeze: () => Promise<void>;
   vaultAddress: string | null;
   demoRecipientAddress: string;
   onChangeDemoRecipient: (val: string) => void;
@@ -47,7 +56,11 @@ interface KipuCopilotProps {
 export function KipuCopilot({
   demoMode,
   isAuthenticated,
+  isOwner,
   isFrozen,
+  hasFunds,
+  freezing,
+  onToggleFreeze,
   vaultAddress,
   demoRecipientAddress,
   onChangeDemoRecipient,
@@ -66,6 +79,8 @@ export function KipuCopilot({
   const [forcedAmount, setForcedAmount] = useState("150");
 
   const canSend = Boolean(isAuthenticated && vaultAddress && !sending);
+  const validDemoRecipient = isValidSolanaPubkey(demoRecipientAddress);
+  const validAttacker = isValidSolanaPubkey(attackerAddress);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,7 +155,7 @@ export function KipuCopilot({
           <h2 className="text-sm font-semibold text-zinc-100">
             Kipu AI Copilot
           </h2>
-          <span className="hidden text-[11px] text-zinc-500 sm:inline">
+          <span className="hidden text-xs text-zinc-300 sm:inline">
             · 1. Segura → 2. Monto → 3. Destino → 4. Freeze
           </span>
         </div>
@@ -171,11 +186,11 @@ export function KipuCopilot({
         </div>
       )}
 
-      {/* Demo address inputs & 3 scenario buttons */}
+      {/* Demo address inputs & 4 scenario buttons */}
       <div className="mb-2.5 space-y-2 rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
         <div className="grid gap-2 sm:grid-cols-2">
           <div>
-            <label className="mb-0.5 block text-[10px] uppercase tracking-wide text-zinc-500">
+            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-300">
               wallet_demo (Allowlist)
             </label>
             <input
@@ -183,11 +198,11 @@ export function KipuCopilot({
               value={demoRecipientAddress}
               onChange={(e) => onChangeDemoRecipient(e.target.value)}
               placeholder="Pubkey wallet_demo"
-              className="w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-[11px] text-zinc-100 placeholder:text-zinc-600"
+              className="w-full rounded border border-kipu-border bg-kipu-card px-2.5 py-1.5 font-mono text-xs text-zinc-100 placeholder:text-zinc-500"
             />
           </div>
           <div>
-            <label className="mb-0.5 block text-[10px] uppercase tracking-wide text-zinc-500">
+            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-300">
               Wallet atacante (Red-Team B)
             </label>
             <input
@@ -195,7 +210,7 @@ export function KipuCopilot({
               value={attackerAddress}
               onChange={(e) => onChangeAttackerAddress(e.target.value)}
               placeholder="Pubkey fuera de allowlist"
-              className="w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-[11px] text-zinc-100 placeholder:text-zinc-600"
+              className="w-full rounded border border-kipu-border bg-kipu-card px-2.5 py-1.5 font-mono text-xs text-zinc-100 placeholder:text-zinc-500"
             />
           </div>
         </div>
@@ -203,9 +218,16 @@ export function KipuCopilot({
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            disabled={!canSend || !demoRecipientAddress.trim()}
+            disabled={!canSend || !validDemoRecipient || !hasFunds}
             onClick={() => void runDemoSafe()}
-            className="inline-flex items-center gap-1 rounded-md border border-kipu-emerald/50 bg-kipu-emerald/15 px-2.5 py-1 text-xs font-medium text-kipu-emerald hover:bg-kipu-emerald/25 disabled:cursor-not-allowed disabled:opacity-40"
+            title={
+              !isAuthenticated
+                ? "Inicia sesión SIWS primero"
+                : !hasFunds
+                  ? "Deposita Mock USDC antes de probar el pago seguro"
+                  : undefined
+            }
+            className="inline-flex items-center gap-1 rounded-md border border-kipu-emerald/50 bg-kipu-emerald/15 px-2.5 py-1.5 text-xs font-medium text-emerald-200 hover:bg-kipu-emerald/25 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/80 disabled:text-zinc-500"
           >
             <Sparkles className="h-3.5 w-3.5" />
             1. Prueba Segura
@@ -213,9 +235,9 @@ export function KipuCopilot({
 
           <button
             type="button"
-            disabled={!canSend || !demoRecipientAddress.trim()}
+            disabled={!canSend || !validDemoRecipient}
             onClick={() => void runDemoRedTeamAmount()}
-            className="inline-flex items-center gap-1 rounded-md border border-kipu-crimson/50 bg-kipu-crimson/15 px-2.5 py-1 text-xs font-medium text-kipu-crimson hover:bg-kipu-crimson/25 disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded-md border border-kipu-crimson/50 bg-kipu-crimson/15 px-2.5 py-1.5 text-xs font-medium text-red-200 hover:bg-kipu-crimson/25 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/80 disabled:text-zinc-500"
           >
             <ShieldAlert className="h-3.5 w-3.5" />
             2. Red-Team A (monto)
@@ -223,24 +245,38 @@ export function KipuCopilot({
 
           <button
             type="button"
-            disabled={!canSend || !attackerAddress.trim()}
+            disabled={!canSend || !validAttacker}
             onClick={() => void runDemoRedTeamRecipient()}
-            className="inline-flex items-center gap-1 rounded-md border border-kipu-crimson/50 bg-kipu-crimson/15 px-2.5 py-1 text-xs font-medium text-kipu-crimson hover:bg-kipu-crimson/25 disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex items-center gap-1 rounded-md border border-kipu-crimson/50 bg-kipu-crimson/15 px-2.5 py-1.5 text-xs font-medium text-red-200 hover:bg-kipu-crimson/25 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/80 disabled:text-zinc-500"
           >
             <AlertTriangle className="h-3.5 w-3.5" />
             3. Red-Team B (destinatario)
           </button>
 
-          <span className="ml-auto text-[10px] text-zinc-500">
-            Paso 4: botón Congelar arriba
-          </span>
+          <button
+            type="button"
+            disabled={!isOwner || !vaultAddress || freezing}
+            onClick={() => void onToggleFreeze()}
+            className={
+              isFrozen
+                ? "ml-auto inline-flex items-center gap-1.5 rounded-md border border-kipu-emerald/60 bg-kipu-emerald/20 px-3 py-1.5 text-xs font-semibold text-emerald-200 hover:bg-kipu-emerald/30 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/80 disabled:text-zinc-500"
+                : "ml-auto inline-flex items-center gap-1.5 rounded-md border border-amber-500/60 bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-200 hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/80 disabled:text-zinc-500"
+            }
+          >
+            <Snowflake className="h-3.5 w-3.5" />
+            {freezing
+              ? "Firmando..."
+              : isFrozen
+                ? "4. Descongelar"
+                : "4. Congelar"}
+          </button>
         </div>
       </div>
 
       {/* Chat feed */}
       <div className="mb-2.5 flex-1 space-y-2.5 overflow-y-auto rounded-lg border border-kipu-border bg-kipu-bg p-3 min-h-[230px] max-h-[340px]">
         {messages.length === 0 ? (
-          <div className="flex h-full min-h-[240px] flex-col items-center justify-center text-center text-xs text-zinc-500">
+          <div className="flex h-full min-h-[240px] flex-col items-center justify-center text-center text-xs text-zinc-300">
             <Bot className="mb-2 h-7 w-7 text-kipu-gold/60" />
             <p className="max-w-sm">
               Conecta tu wallet, inicia sesión SIWS y envía una orden de pago en
@@ -359,12 +395,12 @@ export function KipuCopilot({
               ? "Ej: Paga 5 Mock USDC a <wallet_demo> por revisión de código"
               : "Inicia sesión SIWS arriba para enviar instrucciones..."
           }
-          className="flex-1 rounded-lg border border-kipu-border bg-kipu-bg px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-600 focus:border-kipu-gold focus:outline-none disabled:opacity-50"
+          className="flex-1 rounded-lg border border-kipu-border bg-kipu-bg px-3 py-2 text-xs text-zinc-100 placeholder:text-zinc-400 focus:border-kipu-gold focus:outline-none disabled:opacity-70"
         />
         <button
           type="submit"
           disabled={!canSend || !prompt.trim()}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-kipu-gold px-4 py-2 text-xs font-semibold text-zinc-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-kipu-gold px-4 py-2 text-xs font-semibold text-zinc-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
         >
           <Send className="h-3.5 w-3.5" />
           {sending ? "Enviando..." : "Ejecutar"}

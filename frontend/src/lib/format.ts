@@ -1,4 +1,17 @@
+import { PublicKey } from "@solana/web3.js";
+
 const USDC_SCALE = 1_000_000n;
+
+export function isValidSolanaPubkey(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  try {
+    new PublicKey(trimmed);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export function parseUsdcToBaseUnits(raw: string): bigint {
   const cleaned = raw.trim();

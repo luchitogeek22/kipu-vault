@@ -10,4 +10,13 @@ export const FRONTEND_CONFIG = {
     process.env.NEXT_PUBLIC_PROGRAM_ID ||
     (rawIdl as { address?: string }).address ||
     FALLBACK_PROGRAM_ID,
+  demoMint:
+    process.env.NEXT_PUBLIC_DEMO_MINT ||
+    "J133Fwmo6WbCHE49vhTGeWxLLguoFotnKfeRUzcTzDxk",
+  demoRecipient:
+    process.env.NEXT_PUBLIC_DEMO_RECIPIENT ||
+    "3kx3s1viSB9p5bZt3wDiyaiVZ5j7uNCA488PMEdWgVpN",
+  demoAttacker:
+    process.env.NEXT_PUBLIC_DEMO_ATTACKER ||
+    "AKSZ5fvbe5rG7FeGqPKca5h1v3TDd8YJ1gjfFZ1SVBW1",
 } as const;
