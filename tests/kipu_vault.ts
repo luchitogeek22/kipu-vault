@@ -241,7 +241,7 @@ function createLiteSvmEnv(idl: Idl): {
   svm.setClock(initialClock);
 
   const payer = Keypair.generate();
-  fundSystemAccount(svm, payer.publicKey, 100_000_000_000);
+  fundSystemAccount(svm, payer.publicKey, 1_000_000_000_000);
 
   const provider = new LiteSVMProvider(svm);
   anchor.setProvider(provider as unknown as Provider);
@@ -252,6 +252,7 @@ function createLiteSvmEnv(idl: Idl): {
 
 describe("kipu_vault (anchor-litesvm)", () => {
   let idl: Idl;
+  let sharedEnv: ReturnType<typeof createLiteSvmEnv>;
 
   before(() => {
     if (!fs.existsSync(IDL_PATH)) {
@@ -260,6 +261,7 @@ describe("kipu_vault (anchor-litesvm)", () => {
       );
     }
     idl = JSON.parse(fs.readFileSync(IDL_PATH, "utf8")) as Idl;
+    sharedEnv = createLiteSvmEnv(idl);
   });
 
   async function setupFixture(opts?: {
@@ -268,7 +270,7 @@ describe("kipu_vault (anchor-litesvm)", () => {
     initialOwnerMintAmount?: bigint;
     initialDeposit?: BN;
   }) {
-    const { svm, payer, provider, program, methods } = createLiteSvmEnv(idl);
+    const { svm, payer, provider, program, methods } = sharedEnv;
 
     const owner = Keypair.generate();
     const agent = Keypair.generate();
@@ -394,7 +396,7 @@ describe("kipu_vault (anchor-litesvm)", () => {
   });
 
   it("2. Inicialización inválida: max_per_tx = 0, daily_limit < max_per_tx, agent == owner", async () => {
-    const { svm, payer, program, methods } = createLiteSvmEnv(idl);
+    const { svm, payer, program, methods } = sharedEnv;
 
     const owner = Keypair.generate();
     const agent = Keypair.generate();
