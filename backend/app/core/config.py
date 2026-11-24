@@ -34,10 +34,14 @@ class Settings(BaseSettings):
     nonce_ttl_minutes: int = Field(default=5)
     frontend_origin: str = Field(default="http://localhost:3000")
 
-    llm_provider: Literal["anthropic", "google", "fake"] = Field(default="anthropic")
+    llm_provider: Literal["anthropic", "google", "meta", "fake"] = Field(
+        default="anthropic"
+    )
     llm_model: str = Field(default="claude-sonnet-4-20250514")
     anthropic_api_key: str = Field(default="")
     google_api_key: str = Field(default="")
+    meta_api_key: str = Field(default="")
+    meta_api_base_url: str = Field(default="https://api.meta.ai/v1")
 
     risk_block_threshold: int = Field(default=70, ge=0, le=100)
     kipu_demo_mode: bool = Field(default=False)

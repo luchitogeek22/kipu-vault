@@ -1,4 +1,4 @@
-"""LLM intent parser abstraction with Anthropic, Google Gemini, and FakeLLM support."""
+"""LLM intent parser abstraction with Anthropic, Google Gemini, Meta Model API, and FakeLLM."""
 
 from __future__ import annotations
 
@@ -41,6 +41,20 @@ _INTENT_JSON_SCHEMA: dict[str, Any] = {
         },
     },
     "required": ["action", "reasoning", "risk_score", "risk_flags"],
+    "additionalProperties": False,
+}
+
+_META_INTENT_JSON_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": _INTENT_JSON_SCHEMA["properties"],
+    "required": [
+        "action",
+        "recipient_address",
+        "amount_usdc",
+        "reasoning",
+        "risk_score",
+        "risk_flags",
+    ],
     "additionalProperties": False,
 }
 
@@ -233,6 +247,103 @@ class GoogleLLMClient(LLMClient):
         raise LLMParseError(f"LLM parse failed after retry: {last_err}") from last_err
 
 
+class MetaLLMClient(LLMClient):
+    """Meta Model API client using OpenAI-compatible strict JSON schema at temperature=0."""
+
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        model: str,
+        base_url: str = "https://api.meta.ai/v1",
+        http_client: httpx.AsyncClient | None = None,
+    ) -> None:
+        self.api_key = api_key
+        self.model = model
+        self.base_url = base_url.rstrip("/")
+        self._http_client = http_client
+
+    @staticmethod
+    def _strip_markdown_fences(raw_text: str) -> str:
+        cleaned = raw_text.strip()
+        if cleaned.startswith("```"):
+            lines = cleaned.splitlines()
+            if lines and lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            cleaned = "\n".join(lines).strip()
+        return cleaned
+
+    async def _call_once(self, prompt: str) -> ParsedIntent:
+        if not self.api_key:
+            raise LLMParseError("META_API_KEY is not configured")
+
+        payload = {
+            "model": self.model,
+            "temperature": 0,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": f"UNTRUSTED_USER_PROMPT:\n{prompt}"},
+            ],
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "emit_payment_intent",
+                    "strict": True,
+                    "schema": _META_INTENT_JSON_SCHEMA,
+                },
+            },
+        }
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        url = f"{self.base_url}/chat/completions"
+
+        async def _post(client: httpx.AsyncClient) -> dict[str, Any]:
+            resp = await client.post(url, headers=headers, json=payload, timeout=20.0)
+            resp.raise_for_status()
+            data = resp.json()
+            if not isinstance(data, dict):
+                raise LLMParseError("Unexpected non-dict Meta Model API response")
+            return data
+
+        if self._http_client is not None:
+            data = await _post(self._http_client)
+        else:
+            async with httpx.AsyncClient() as client:
+                data = await _post(client)
+
+        choices = data.get("choices", [])
+        if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+            raise LLMParseError("Meta Model API returned no choices")
+        message = choices[0].get("message", {})
+        if not isinstance(message, dict):
+            raise LLMParseError("Meta Model API returned invalid message object")
+        raw_text = message.get("content", "")
+        if not isinstance(raw_text, str) or not raw_text.strip():
+            raise LLMParseError("Meta Model API returned empty message content")
+
+        parsed_raw = json.loads(self._strip_markdown_fences(raw_text))
+        return ParsedIntent.model_validate(parsed_raw)
+
+    async def parse_intent(self, prompt: str) -> ParsedIntent:
+        last_err: Exception | None = None
+        for _ in range(2):
+            try:
+                return await self._call_once(prompt)
+            except (
+                httpx.HTTPError,
+                json.JSONDecodeError,
+                ValidationError,
+                ValueError,
+                LLMParseError,
+            ) as exc:
+                last_err = exc
+        raise LLMParseError(f"LLM parse failed after retry: {last_err}") from last_err
+
+
 class FakeLLMClient(LLMClient):
     """Offline deterministic LLM client for tests and local non-network checks."""
 
@@ -287,5 +398,11 @@ def build_llm_client(settings: Settings) -> LLMClient:
         return GoogleLLMClient(
             api_key=settings.google_api_key,
             model=settings.llm_model,
+        )
+    if settings.llm_provider == "meta":
+        return MetaLLMClient(
+            api_key=settings.meta_api_key,
+            model=settings.llm_model,
+            base_url=settings.meta_api_base_url,
         )
     return FakeLLMClient()
