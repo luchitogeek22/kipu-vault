@@ -18,7 +18,8 @@
     }
   },
   "remoteEnv": {
-    "PATH": "${containerEnv:PATH}:/home/vscode/.local/share/solana/install/active_release/bin:/home/vscode/.avm/bin:/home/vscode/.cargo/bin"
+    "PATH": "${containerEnv:PATH}:/home/vscode/.local/share/solana/install/active_release/bin:/home/vscode/.avm/bin:/home/vscode/.cargo/bin",
+    "ANCHOR_BUILD_SBF_ARCH": "v0"
   },
   "postCreateCommand": "bash .devcontainer/setup.sh",
   "forwardPorts": [8000, 3000],

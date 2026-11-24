@@ -15,6 +15,10 @@ export PATH="$SOLANA_BIN:$HOME/.avm/bin:$HOME/.cargo/bin:$PATH"
 if ! grep -q "$SOLANA_BIN" "$HOME/.bashrc"; then
   echo "export PATH=\"$SOLANA_BIN:\$HOME/.avm/bin:\$HOME/.cargo/bin:\$PATH\"" >> "$HOME/.bashrc"
 fi
+export ANCHOR_BUILD_SBF_ARCH=v0
+if ! grep -q "ANCHOR_BUILD_SBF_ARCH" "$HOME/.bashrc"; then
+  echo "export ANCHOR_BUILD_SBF_ARCH=v0" >> "$HOME/.bashrc"
+fi
 
 mkdir -p "$HOME/.config/solana"
 if [ ! -f "$HOME/.config/solana/id.json" ]; then
@@ -52,6 +56,6 @@ backend/.venv/bin/pip install -r backend/requirements.txt
 echo ""
 echo "=== KipuVault Codespace listo ==="
 echo "Ejecuta ahora:"
-echo "  anchor build && anchor keys sync && anchor build"
+echo "  anchor build --arch v0 && anchor keys sync && anchor build --arch v0"
 echo "  npm run sync:idl"
 echo "  anchor test --skip-local-validator --skip-deploy --skip-build"
