@@ -8,7 +8,7 @@ on:
 jobs:
   anchor-phase1:
     name: Phase 1 — Anchor Build & 20 LiteSVM Tests
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -107,7 +107,7 @@ jobs:
 
   backend-and-postgres-phase2:
     name: Phase 2 — Supabase Schema on Empty Postgres & Backend Checks
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16
@@ -159,7 +159,7 @@ jobs:
 
   frontend-phase3:
     name: Phase 3 — Frontend Lint & Next.js Build
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
