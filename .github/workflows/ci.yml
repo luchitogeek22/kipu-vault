@@ -63,11 +63,6 @@ jobs:
 
       - name: Anchor Build & IDL Check
         run: |
-          rustup toolchain install 1.85.0 --profile minimal
-          cargo +1.85.0 generate-lockfile
-          cargo +1.85.0 tree -i crypto-common@0.2.2 || true
-          cargo +1.85.0 update -p crypto-common@0.2.2 --precise 0.2.1 || true
-          cargo +1.85.0 update -p constant_time_eq@0.4.2 --precise 0.3.1 || true
           anchor build
           test -f target/idl/kipu_vault.json
           test -f target/deploy/kipu_vault.so
