@@ -12,7 +12,7 @@ Este documento fija las versiones exactas del stack sin rangos abiertos (`SPEC.m
 | `@anchor-lang/core` | `1.2.1` | `package.json`, `frontend/package.json` |
 | `@solana/web3.js` (raíz / frontend) | `1.98.4` / `1.99.0` | `package.json`, `frontend/package.json` |
 | `@solana/spl-token` | `0.4.9` | `package.json`, `frontend/package.json` |
-| `litesvm` / `anchor-litesvm` | `0.3.3` / `0.2.1` | `package.json` |
+| `litesvm` / `anchor-litesvm` | `1.6.2` / `0.2.1` | `package.json` |
 | Next.js / React / Tailwind | `15.5.29` / `19.1.0` / `3.4.17` | `frontend/package.json` |
 | Python | `3.12.10` | `backend/requirements.txt` (entorno local / Codespaces `3.12`) |
 | FastAPI / Pydantic / Uvicorn | `0.165.0` / `2.14.4` / `0.54.0` | `backend/requirements.txt` |

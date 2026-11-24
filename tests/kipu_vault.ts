@@ -3,8 +3,12 @@ import path from "path";
 import crypto from "crypto";
 import * as anchor from "@anchor-lang/core";
 import { BN, EventParser, Idl, Program, Provider } from "@anchor-lang/core";
-import { fromWorkspace, LiteSVMProvider } from "anchor-litesvm";
-import { FailedTransactionMetadata, LiteSVM } from "litesvm";
+import { LiteSVMProvider } from "anchor-litesvm";
+import {
+  FailedTransactionMetadata,
+  Web3LiteSVM,
+  fromWorkspace,
+} from "./litesvm_compat";
 import {
   Keypair,
   PublicKey,
@@ -71,7 +75,7 @@ function deriveVaultPda(
 }
 
 function sendLiteSvmTx(
-  svm: LiteSVM,
+  svm: Web3LiteSVM,
   payer: Keypair,
   tx: Transaction,
   signers: Keypair[]
@@ -90,7 +94,7 @@ function sendLiteSvmTx(
 }
 
 function tryLiteSvmTx(
-  svm: LiteSVM,
+  svm: Web3LiteSVM,
   payer: Keypair,
   tx: Transaction,
   signers: Keypair[]
@@ -113,7 +117,7 @@ function tryLiteSvmTx(
 }
 
 function fundSystemAccount(
-  svm: LiteSVM,
+  svm: Web3LiteSVM,
   pubkey: PublicKey,
   lamports = 2_000_000_000
 ): void {
@@ -126,7 +130,7 @@ function fundSystemAccount(
 }
 
 function createSplMint(
-  svm: LiteSVM,
+  svm: Web3LiteSVM,
   payer: Keypair,
   mintAuthority: PublicKey
 ): PublicKey {
@@ -153,7 +157,7 @@ function createSplMint(
 }
 
 function createAtaAndMint(
-  svm: LiteSVM,
+  svm: Web3LiteSVM,
   payer: Keypair,
   mint: PublicKey,
   owner: PublicKey,
@@ -198,7 +202,7 @@ function createAtaAndMint(
   return ata;
 }
 
-function getTokenBalance(svm: LiteSVM, tokenAccount: PublicKey): bigint {
+function getTokenBalance(svm: Web3LiteSVM, tokenAccount: PublicKey): bigint {
   const info = svm.getAccount(tokenAccount);
   if (!info) {
     throw new Error(`Token account not found: ${tokenAccount.toBase58()}`);
@@ -229,7 +233,7 @@ function expectKipuErrorResult(
 }
 
 function createLiteSvmEnv(idl: Idl): {
-  svm: LiteSVM;
+  svm: Web3LiteSVM;
   payer: Keypair;
   provider: LiteSVMProvider;
   program: Program;
@@ -243,7 +247,9 @@ function createLiteSvmEnv(idl: Idl): {
   const payer = Keypair.generate();
   fundSystemAccount(svm, payer.publicKey, 1_000_000_000_000);
 
-  const provider = new LiteSVMProvider(svm);
+  const provider = new LiteSVMProvider(
+    svm as unknown as ConstructorParameters<typeof LiteSVMProvider>[0]
+  );
   anchor.setProvider(provider as unknown as Provider);
   const program = new Program(idl, provider as unknown as Provider);
   const methods = program.methods as unknown as KipuVaultMethods;
