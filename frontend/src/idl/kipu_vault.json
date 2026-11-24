@@ -1,0 +1,175 @@
+{
+  "address": "KipuVau1t1111111111111111111111111111111111",
+  "metadata": {
+    "name": "kipu_vault",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "KipuVault: Solana Smart Vault with on-chain guardrails for AI payment agents"
+  },
+  "instructions": [
+    {
+      "name": "initialize_vault",
+      "discriminator": [48, 191, 163, 44, 71, 129, 63, 164],
+      "accounts": [
+        { "name": "owner", "writable": true, "signer": true },
+        { "name": "mint" },
+        { "name": "vault", "writable": true },
+        { "name": "vault_token_account", "writable": true },
+        { "name": "system_program" },
+        { "name": "token_program" },
+        { "name": "associated_token_program" }
+      ],
+      "args": [
+        { "name": "agent", "type": "pubkey" },
+        { "name": "max_per_tx", "type": "u64" },
+        { "name": "daily_limit", "type": "u64" }
+      ]
+    },
+    {
+      "name": "deposit",
+      "discriminator": [242, 35, 198, 137, 82, 225, 242, 182],
+      "accounts": [
+        { "name": "owner", "signer": true },
+        { "name": "vault" },
+        { "name": "mint" },
+        { "name": "owner_token_account", "writable": true },
+        { "name": "vault_token_account", "writable": true },
+        { "name": "token_program" }
+      ],
+      "args": [{ "name": "amount", "type": "u64" }]
+    },
+    {
+      "name": "withdraw",
+      "discriminator": [183, 18, 70, 156, 148, 109, 161, 34],
+      "accounts": [
+        { "name": "owner", "signer": true },
+        { "name": "vault" },
+        { "name": "mint" },
+        { "name": "vault_token_account", "writable": true },
+        { "name": "owner_token_account", "writable": true },
+        { "name": "token_program" }
+      ],
+      "args": [{ "name": "amount", "type": "u64" }]
+    },
+    {
+      "name": "agent_execute",
+      "discriminator": [133, 29, 92, 254, 69, 92, 252, 191],
+      "accounts": [
+        { "name": "agent", "signer": true },
+        { "name": "vault", "writable": true },
+        { "name": "mint" },
+        { "name": "vault_token_account", "writable": true },
+        { "name": "destination_token", "writable": true },
+        { "name": "token_program" }
+      ],
+      "args": [
+        { "name": "amount", "type": "u64" },
+        { "name": "decision_hash", "type": { "array": ["u8", 32] } }
+      ]
+    },
+    {
+      "name": "update_policy",
+      "discriminator": [212, 245, 246, 7, 163, 151, 18, 57],
+      "accounts": [
+        { "name": "owner", "signer": true },
+        { "name": "vault", "writable": true }
+      ],
+      "args": [
+        { "name": "new_agent", "type": { "option": "pubkey" } },
+        { "name": "new_max_per_tx", "type": { "option": "u64" } },
+        { "name": "new_daily_limit", "type": { "option": "u64" } }
+      ]
+    },
+    {
+      "name": "emergency_freeze",
+      "discriminator": [179, 69, 168, 100, 173, 7, 136, 112],
+      "accounts": [
+        { "name": "owner", "signer": true },
+        { "name": "vault", "writable": true }
+      ],
+      "args": [{ "name": "freeze", "type": "bool" }]
+    },
+    {
+      "name": "add_recipient",
+      "discriminator": [207, 170, 166, 28, 210, 186, 242, 145],
+      "accounts": [
+        { "name": "owner", "signer": true },
+        { "name": "vault", "writable": true }
+      ],
+      "args": [{ "name": "recipient", "type": "pubkey" }]
+    },
+    {
+      "name": "remove_recipient",
+      "discriminator": [155, 185, 10, 53, 111, 57, 100, 149],
+      "accounts": [
+        { "name": "owner", "signer": true },
+        { "name": "vault", "writable": true }
+      ],
+      "args": [{ "name": "recipient", "type": "pubkey" }]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "VaultState",
+      "discriminator": [228, 196, 82, 165, 98, 210, 235, 152]
+    }
+  ],
+  "events": [
+    {
+      "name": "KipuAuditEvent",
+      "discriminator": [155, 65, 77, 108, 244, 188, 120, 39]
+    }
+  ],
+  "errors": [
+    { "code": 6000, "name": "UnauthorizedOwner", "msg": "Only the vault owner is authorized to perform this action" },
+    { "code": 6001, "name": "UnauthorizedAgent", "msg": "Only the configured agent is authorized to execute payments" },
+    { "code": 6002, "name": "VaultFrozen", "msg": "Vault is currently frozen for agent executions" },
+    { "code": 6003, "name": "ExceedsTransactionLimit", "msg": "Amount exceeds maximum per transaction limit" },
+    { "code": 6004, "name": "ExceedsDailyLimit", "msg": "Amount exceeds 24-hour daily spending limit" },
+    { "code": 6005, "name": "InvalidPolicyConfig", "msg": "Invalid vault policy configuration" },
+    { "code": 6006, "name": "InvalidAmount", "msg": "Amount must be greater than zero" },
+    { "code": 6007, "name": "MathOverflow", "msg": "Arithmetic overflow occurred" },
+    { "code": 6008, "name": "RecipientNotAllowed", "msg": "Destination token owner is not in the vault allowlist" },
+    { "code": 6009, "name": "RecipientListFull", "msg": "Allowed recipients list is full (maximum 8)" },
+    { "code": 6010, "name": "RecipientAlreadyExists", "msg": "Recipient is already in the allowlist" },
+    { "code": 6011, "name": "RecipientNotFound", "msg": "Recipient was not found in the allowlist" },
+    { "code": 6012, "name": "InvalidDecisionHash", "msg": "Decision hash must not be all zeros" },
+    { "code": 6013, "name": "InvalidMint", "msg": "Token account mint does not match vault mint" }
+  ],
+  "types": [
+    {
+      "name": "VaultState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "owner", "type": "pubkey" },
+          { "name": "agent", "type": "pubkey" },
+          { "name": "mint", "type": "pubkey" },
+          { "name": "max_per_tx", "type": "u64" },
+          { "name": "daily_limit", "type": "u64" },
+          { "name": "spent_today", "type": "u64" },
+          { "name": "window_start", "type": "i64" },
+          { "name": "is_frozen", "type": "bool" },
+          { "name": "total_executions", "type": "u64" },
+          { "name": "allowed_recipients", "type": { "array": ["pubkey", 8] } },
+          { "name": "recipient_count", "type": "u8" },
+          { "name": "bump", "type": "u8" }
+        ]
+      }
+    },
+    {
+      "name": "KipuAuditEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "vault", "type": "pubkey" },
+          { "name": "agent", "type": "pubkey" },
+          { "name": "destination", "type": "pubkey" },
+          { "name": "amount", "type": "u64" },
+          { "name": "decision_hash", "type": { "array": ["u8", 32] } },
+          { "name": "timestamp", "type": "i64" }
+        ]
+      }
+    }
+  ]
+}

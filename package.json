@@ -6,6 +6,7 @@
   "scripts": {
     "test": "ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts",
     "typecheck": "tsc --noEmit",
+    "sync:idl": "ts-node scripts/sync_idl.ts",
     "setup:devnet": "ts-node scripts/setup_devnet_usdc.ts",
     "bootstrap:vault": "ts-node scripts/bootstrap_vault.ts"
   },

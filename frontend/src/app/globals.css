@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background-color: #09090b;
+  color: #f4f4f5;
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+/* Solana Wallet Adapter dark Inca Gold theme alignment */
+.wallet-adapter-button {
+  background-color: #18181b !important;
+  border: 1px solid #27272a !important;
+  color: #f4f4f5 !important;
+  font-family: var(--font-inter), system-ui, sans-serif !important;
+  font-size: 0.75rem !important;
+  height: 2.35rem !important;
+  border-radius: 0.5rem !important;
+}
+
+.wallet-adapter-button:hover {
+  border-color: rgba(245, 158, 11, 0.6) !important;
+  background-color: #27272a !important;
+}
