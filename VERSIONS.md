@@ -4,7 +4,7 @@ Este documento fija las versiones exactas del stack sin rangos abiertos (`SPEC.m
 
 | Componente | Versión exacta | Archivo donde se fija |
 | --- | --- | --- |
-| Rust (`rustc`) | `1.81.0` | `rust-toolchain.toml`, `.devcontainer/devcontainer.json` |
+| Rust (`rustc`) | `1.79.0` | `rust-toolchain.toml`, `.devcontainer/devcontainer.json` |
 | Solana CLI (`agave` / `solana`) | `1.18.26` | `Anchor.toml`, `.devcontainer/setup.sh` |
 | Anchor CLI / `anchor-lang` / `anchor-spl` | `0.30.1` | `Anchor.toml`, `programs/kipu_vault/Cargo.toml`, `package.json`, `frontend/package.json` |
 | Node.js (Windows local / Codespaces) | `26.13.0` / `22` | Entorno local / `.devcontainer/devcontainer.json` |
