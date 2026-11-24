@@ -1,0 +1,37 @@
+# Dependencies & build artifacts
+node_modules/
+target/
+test-ledger/
+.anchor/
+dist/
+build/
+.next/
+out/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets & local configs (NEVER commit keypairs or .env)
+.env
+.env.local
+.env.*.local
+*.keypair.json
+*-keypair.json
+keypairs/
+scripts/devnet-output.json
+scripts/vault-output.json
+frontend/.env.local
+backend/.env
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
