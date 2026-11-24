@@ -6,7 +6,7 @@ pub mod state;
 
 use instructions::*;
 
-declare_id!("KipuVau1t1111111111111111111111111111111111");
+declare_id!("EVPQDCiHnR47n7PKGw1nUD4dRm3ALN4AZrxgxj2kUfSx");
 
 #[program]
 pub mod kipu_vault {

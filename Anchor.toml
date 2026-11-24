@@ -6,14 +6,11 @@ solana_version = "4.1.2"
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-kipu_vault = "KipuVau1t1111111111111111111111111111111111"
-
 [programs.devnet]
-kipu_vault = "KipuVau1t1111111111111111111111111111111111"
+kipu_vault = "EVPQDCiHnR47n7PKGw1nUD4dRm3ALN4AZrxgxj2kUfSx"
 
-[registry]
-url = "https://api.apr.dev"
+[programs.localnet]
+kipu_vault = "EVPQDCiHnR47n7PKGw1nUD4dRm3ALN4AZrxgxj2kUfSx"
 
 [provider]
 cluster = "Localnet"
@@ -21,3 +18,4 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "node --no-experimental-strip-types ./node_modules/mocha/bin/mocha.js --require ts-node/register -t 1000000 tests/**/*.ts"
+

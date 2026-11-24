@@ -7,11 +7,13 @@ Inspirado en el **Quipu** incaico como sistema de registro de tesorería y audit
 ## Program ID en Solana Devnet
 
 ```text
-Program ID (workspace inicial, sincronizar tras anchor keys sync & deploy):
-KipuVau1t1111111111111111111111111111111111
+Program ID (desplegado en Solana Devnet):
+EVPQDCiHnR47n7PKGw1nUD4dRm3ALN4AZrxgxj2kUfSx
 ```
 
-> Al desplegar desde Codespaces con `anchor build && anchor keys sync && anchor build && anchor deploy --provider.cluster devnet`, actualiza este bloque, `.env` (`KIPU_PROGRAM_ID`, `NEXT_PUBLIC_PROGRAM_ID`) y ejecuta `npm run sync:idl`.
+- **Explorer Devnet:** https://explorer.solana.com/address/EVPQDCiHnR47n7PKGw1nUD4dRm3ALN4AZrxgxj2kUfSx?cluster=devnet
+- **Bóveda inicializada (`bootstrap:vault`):** `8w7zQQupP3qnPod7juUzwr8xvrrVKa7qsH45d5yk3fTS` (Mock USDC mint: `J133Fwmo6WbCHE49vhTGeWxLLguoFotnKfeRUzcTzDxk`)
+- *(Para redesplegar o re-sincronizar IDL tras cambios en Rust, ejecuta `npm run deploy:devnet` y actualiza `.env` / `frontend/.env.local`).*
 
 ---
 
@@ -114,9 +116,9 @@ Squads es infraestructura multisig de propósito general y complementaria; **Kip
 
 ## Checklist de verificación (`SPEC.md` §1 y §9)
 
-- [x] **Programa Anchor y 20 tests LiteSVM (`programs/kipu_vault`, `tests/kipu_vault.ts`)**: `VaultState`, 8 instrucciones, orden determinista 1–11 en `agent_execute`, 14 `KipuError` (`6000`–`6013`); `anchor build`, `anchor keys sync`, `target/idl/kipu_vault.json` y `20 passing` verificados en CI (GitHub Actions run `45398611774`).
-- [x] **Esquema SQL sobre Postgres vacío y Backend FastAPI (`supabase/schema.sql`, `backend/`)**: `supabase/schema.sql` verificado sobre Postgres 16 vacío en CI; `pytest backend -q` (`28 passed`), `ruff check backend` limpio, `mypy backend/app` limpio.
-- [x] **Frontend (`frontend/`)**: TopBar, PolicyPanel, KipuCopilot, AuditLedger con tema oscuro/Inca Gold, Wallet Adapter, SIWS y verificación de integridad (`npm run lint && npm run build` en verde en CI).
-- [ ] **Despliegue en Solana Devnet y Program ID definitivo**: ejecutar `anchor deploy --provider.cluster devnet`, `npm run sync:idl`, `npm run setup:devnet`, `npm run bootstrap:vault` y actualizar el Program ID real en este README y `.env`.
-- [ ] **Instancia real de Supabase y `.env`**: aplicar `supabase/schema.sql` en el proyecto live de Supabase y configurar variables de entorno reales.
+- [x] **Programa Anchor y 20 tests LiteSVM (`programs/kipu_vault`, `tests/kipu_vault.ts`)**: `VaultState`, 8 instrucciones, orden determinista 1–11 en `agent_execute`, 14 `KipuError` (`6000`–`6013`); `anchor build`, `anchor keys sync`, `target/idl/kipu_vault.json` y `20 passing` verificados en CI (GitHub Actions run `45415264328`).
+- [x] **Esquema SQL sobre Postgres vacío y Backend FastAPI (`supabase/schema.sql`, `backend/`)**: `supabase/schema.sql` verificado sobre Postgres 16 vacío en CI; `pytest backend -q` (`31 passed`), `ruff check backend` limpio, `mypy backend/app` limpio.
+- [x] **Frontend (`frontend/`)**: TopBar, PolicyPanel, KipuCopilot, AuditLedger con tema oscuro/Inca Gold, Wallet Adapter, SIWS y verificación de integridad (`npm run lint && npm run build` y Docker builds en verde en CI).
+- [x] **Despliegue en Solana Devnet y Program ID definitivo**: desplegado en Devnet (`EVPQDCiHnR47n7PKGw1nUD4dRm3ALN4AZrxgxj2kUfSx`), IDL sincronizado en `frontend/src/idl/kipu_vault.json`, Mock USDC creado (`setup:devnet`) y bóveda inicializada (`bootstrap:vault`) con `100.00 Mock USDC`.
+- [ ] **Instancia real de Supabase y `.env`**: esquema `supabase/schema.sql` aplicado y verificado en `kipu-vault` (`https://gnutupmixhkgrskpdras.supabase.co`); resta completar `.env` (`SUPABASE_SERVICE_ROLE_KEY`, `AGENT_KEYPAIR_B58` y API key del LLM) y `frontend/.env.local`.
 - [ ] **Guion de demo E2E contra Devnet**: recorrer pasos 1–5 de `SPEC.md` §2 con Phantom, FastAPI, Next.js y Supabase live.

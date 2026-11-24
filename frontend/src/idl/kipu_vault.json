@@ -1,5 +1,5 @@
 {
-  "address": "KipuVau1t1111111111111111111111111111111111",
+  "address": "EVPQDCiHnR47n7PKGw1nUD4dRm3ALN4AZrxgxj2kUfSx",
   "metadata": {
     "name": "kipu_vault",
     "version": "0.1.0",
@@ -8,166 +8,1104 @@
   },
   "instructions": [
     {
-      "name": "initialize_vault",
-      "discriminator": [48, 191, 163, 44, 71, 129, 63, 164],
+      "name": "add_recipient",
+      "discriminator": [
+        207,
+        170,
+        166,
+        28,
+        210,
+        186,
+        242,
+        145
+      ],
       "accounts": [
-        { "name": "owner", "writable": true, "signer": true },
-        { "name": "mint" },
-        { "name": "vault", "writable": true },
-        { "name": "vault_token_account", "writable": true },
-        { "name": "system_program" },
-        { "name": "token_program" },
-        { "name": "associated_token_program" }
+        {
+          "name": "owner",
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  107,
+                  105,
+                  112,
+                  117,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.owner",
+                "account": "VaultState"
+              },
+              {
+                "kind": "account",
+                "path": "vault.mint",
+                "account": "VaultState"
+              }
+            ]
+          }
+        }
       ],
       "args": [
-        { "name": "agent", "type": "pubkey" },
-        { "name": "max_per_tx", "type": "u64" },
-        { "name": "daily_limit", "type": "u64" }
+        {
+          "name": "recipient",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "agent_execute",
+      "discriminator": [
+        133,
+        29,
+        92,
+        254,
+        69,
+        92,
+        252,
+        191
+      ],
+      "accounts": [
+        {
+          "name": "agent",
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  107,
+                  105,
+                  112,
+                  117,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.owner",
+                "account": "VaultState"
+              },
+              {
+                "kind": "account",
+                "path": "vault.mint",
+                "account": "VaultState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "destination_token",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "decision_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
       ]
     },
     {
       "name": "deposit",
-      "discriminator": [242, 35, 198, 137, 82, 225, 242, 182],
-      "accounts": [
-        { "name": "owner", "signer": true },
-        { "name": "vault" },
-        { "name": "mint" },
-        { "name": "owner_token_account", "writable": true },
-        { "name": "vault_token_account", "writable": true },
-        { "name": "token_program" }
+      "discriminator": [
+        242,
+        35,
+        198,
+        137,
+        82,
+        225,
+        242,
+        182
       ],
-      "args": [{ "name": "amount", "type": "u64" }]
-    },
-    {
-      "name": "withdraw",
-      "discriminator": [183, 18, 70, 156, 148, 109, 161, 34],
       "accounts": [
-        { "name": "owner", "signer": true },
-        { "name": "vault" },
-        { "name": "mint" },
-        { "name": "vault_token_account", "writable": true },
-        { "name": "owner_token_account", "writable": true },
-        { "name": "token_program" }
-      ],
-      "args": [{ "name": "amount", "type": "u64" }]
-    },
-    {
-      "name": "agent_execute",
-      "discriminator": [133, 29, 92, 254, 69, 92, 252, 191],
-      "accounts": [
-        { "name": "agent", "signer": true },
-        { "name": "vault", "writable": true },
-        { "name": "mint" },
-        { "name": "vault_token_account", "writable": true },
-        { "name": "destination_token", "writable": true },
-        { "name": "token_program" }
+        {
+          "name": "owner",
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  107,
+                  105,
+                  112,
+                  117,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.owner",
+                "account": "VaultState"
+              },
+              {
+                "kind": "account",
+                "path": "vault.mint",
+                "account": "VaultState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "owner_token_account",
+          "writable": true
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
       ],
       "args": [
-        { "name": "amount", "type": "u64" },
-        { "name": "decision_hash", "type": { "array": ["u8", 32] } }
-      ]
-    },
-    {
-      "name": "update_policy",
-      "discriminator": [212, 245, 246, 7, 163, 151, 18, 57],
-      "accounts": [
-        { "name": "owner", "signer": true },
-        { "name": "vault", "writable": true }
-      ],
-      "args": [
-        { "name": "new_agent", "type": { "option": "pubkey" } },
-        { "name": "new_max_per_tx", "type": { "option": "u64" } },
-        { "name": "new_daily_limit", "type": { "option": "u64" } }
+        {
+          "name": "amount",
+          "type": "u64"
+        }
       ]
     },
     {
       "name": "emergency_freeze",
-      "discriminator": [179, 69, 168, 100, 173, 7, 136, 112],
-      "accounts": [
-        { "name": "owner", "signer": true },
-        { "name": "vault", "writable": true }
+      "discriminator": [
+        179,
+        69,
+        168,
+        100,
+        173,
+        7,
+        136,
+        112
       ],
-      "args": [{ "name": "freeze", "type": "bool" }]
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  107,
+                  105,
+                  112,
+                  117,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.owner",
+                "account": "VaultState"
+              },
+              {
+                "kind": "account",
+                "path": "vault.mint",
+                "account": "VaultState"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "freeze",
+          "type": "bool"
+        }
+      ]
     },
     {
-      "name": "add_recipient",
-      "discriminator": [207, 170, 166, 28, 210, 186, 242, 145],
-      "accounts": [
-        { "name": "owner", "signer": true },
-        { "name": "vault", "writable": true }
+      "name": "initialize_vault",
+      "discriminator": [
+        48,
+        191,
+        163,
+        44,
+        71,
+        129,
+        63,
+        164
       ],
-      "args": [{ "name": "recipient", "type": "pubkey" }]
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  107,
+                  105,
+                  112,
+                  117,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": [
+        {
+          "name": "agent",
+          "type": "pubkey"
+        },
+        {
+          "name": "max_per_tx",
+          "type": "u64"
+        },
+        {
+          "name": "daily_limit",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "remove_recipient",
-      "discriminator": [155, 185, 10, 53, 111, 57, 100, 149],
-      "accounts": [
-        { "name": "owner", "signer": true },
-        { "name": "vault", "writable": true }
+      "discriminator": [
+        155,
+        185,
+        10,
+        53,
+        111,
+        57,
+        100,
+        149
       ],
-      "args": [{ "name": "recipient", "type": "pubkey" }]
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  107,
+                  105,
+                  112,
+                  117,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.owner",
+                "account": "VaultState"
+              },
+              {
+                "kind": "account",
+                "path": "vault.mint",
+                "account": "VaultState"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "recipient",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "update_policy",
+      "discriminator": [
+        212,
+        245,
+        246,
+        7,
+        163,
+        151,
+        18,
+        57
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  107,
+                  105,
+                  112,
+                  117,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.owner",
+                "account": "VaultState"
+              },
+              {
+                "kind": "account",
+                "path": "vault.mint",
+                "account": "VaultState"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "new_agent",
+          "type": {
+            "option": "pubkey"
+          }
+        },
+        {
+          "name": "new_max_per_tx",
+          "type": {
+            "option": "u64"
+          }
+        },
+        {
+          "name": "new_daily_limit",
+          "type": {
+            "option": "u64"
+          }
+        }
+      ]
+    },
+    {
+      "name": "withdraw",
+      "discriminator": [
+        183,
+        18,
+        70,
+        156,
+        148,
+        109,
+        161,
+        34
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  107,
+                  105,
+                  112,
+                  117,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.owner",
+                "account": "VaultState"
+              },
+              {
+                "kind": "account",
+                "path": "vault.mint",
+                "account": "VaultState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "vault_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "owner_token_account",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
     }
   ],
   "accounts": [
     {
       "name": "VaultState",
-      "discriminator": [228, 196, 82, 165, 98, 210, 235, 152]
+      "discriminator": [
+        228,
+        196,
+        82,
+        165,
+        98,
+        210,
+        235,
+        152
+      ]
     }
   ],
   "events": [
     {
       "name": "KipuAuditEvent",
-      "discriminator": [155, 65, 77, 108, 244, 188, 120, 39]
+      "discriminator": [
+        155,
+        65,
+        77,
+        108,
+        244,
+        188,
+        120,
+        39
+      ]
     }
   ],
   "errors": [
-    { "code": 6000, "name": "UnauthorizedOwner", "msg": "Only the vault owner is authorized to perform this action" },
-    { "code": 6001, "name": "UnauthorizedAgent", "msg": "Only the configured agent is authorized to execute payments" },
-    { "code": 6002, "name": "VaultFrozen", "msg": "Vault is currently frozen for agent executions" },
-    { "code": 6003, "name": "ExceedsTransactionLimit", "msg": "Amount exceeds maximum per transaction limit" },
-    { "code": 6004, "name": "ExceedsDailyLimit", "msg": "Amount exceeds 24-hour daily spending limit" },
-    { "code": 6005, "name": "InvalidPolicyConfig", "msg": "Invalid vault policy configuration" },
-    { "code": 6006, "name": "InvalidAmount", "msg": "Amount must be greater than zero" },
-    { "code": 6007, "name": "MathOverflow", "msg": "Arithmetic overflow occurred" },
-    { "code": 6008, "name": "RecipientNotAllowed", "msg": "Destination token owner is not in the vault allowlist" },
-    { "code": 6009, "name": "RecipientListFull", "msg": "Allowed recipients list is full (maximum 8)" },
-    { "code": 6010, "name": "RecipientAlreadyExists", "msg": "Recipient is already in the allowlist" },
-    { "code": 6011, "name": "RecipientNotFound", "msg": "Recipient was not found in the allowlist" },
-    { "code": 6012, "name": "InvalidDecisionHash", "msg": "Decision hash must not be all zeros" },
-    { "code": 6013, "name": "InvalidMint", "msg": "Token account mint does not match vault mint" }
+    {
+      "code": 6000,
+      "name": "UnauthorizedOwner",
+      "msg": "Only the vault owner is authorized to perform this action"
+    },
+    {
+      "code": 6001,
+      "name": "UnauthorizedAgent",
+      "msg": "Only the configured agent is authorized to execute payments"
+    },
+    {
+      "code": 6002,
+      "name": "VaultFrozen",
+      "msg": "Vault is currently frozen for agent executions"
+    },
+    {
+      "code": 6003,
+      "name": "ExceedsTransactionLimit",
+      "msg": "Amount exceeds maximum per transaction limit"
+    },
+    {
+      "code": 6004,
+      "name": "ExceedsDailyLimit",
+      "msg": "Amount exceeds 24-hour daily spending limit"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidPolicyConfig",
+      "msg": "Invalid vault policy configuration"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidAmount",
+      "msg": "Amount must be greater than zero"
+    },
+    {
+      "code": 6007,
+      "name": "MathOverflow",
+      "msg": "Arithmetic overflow occurred"
+    },
+    {
+      "code": 6008,
+      "name": "RecipientNotAllowed",
+      "msg": "Destination token owner is not in the vault allowlist"
+    },
+    {
+      "code": 6009,
+      "name": "RecipientListFull",
+      "msg": "Allowed recipients list is full (maximum 8)"
+    },
+    {
+      "code": 6010,
+      "name": "RecipientAlreadyExists",
+      "msg": "Recipient is already in the allowlist"
+    },
+    {
+      "code": 6011,
+      "name": "RecipientNotFound",
+      "msg": "Recipient was not found in the allowlist"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidDecisionHash",
+      "msg": "Decision hash must not be all zeros"
+    },
+    {
+      "code": 6013,
+      "name": "InvalidMint",
+      "msg": "Token account mint does not match vault mint"
+    }
   ],
   "types": [
-    {
-      "name": "VaultState",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          { "name": "owner", "type": "pubkey" },
-          { "name": "agent", "type": "pubkey" },
-          { "name": "mint", "type": "pubkey" },
-          { "name": "max_per_tx", "type": "u64" },
-          { "name": "daily_limit", "type": "u64" },
-          { "name": "spent_today", "type": "u64" },
-          { "name": "window_start", "type": "i64" },
-          { "name": "is_frozen", "type": "bool" },
-          { "name": "total_executions", "type": "u64" },
-          { "name": "allowed_recipients", "type": { "array": ["pubkey", 8] } },
-          { "name": "recipient_count", "type": "u8" },
-          { "name": "bump", "type": "u8" }
-        ]
-      }
-    },
     {
       "name": "KipuAuditEvent",
       "type": {
         "kind": "struct",
         "fields": [
-          { "name": "vault", "type": "pubkey" },
-          { "name": "agent", "type": "pubkey" },
-          { "name": "destination", "type": "pubkey" },
-          { "name": "amount", "type": "u64" },
-          { "name": "decision_hash", "type": { "array": ["u8", 32] } },
-          { "name": "timestamp", "type": "i64" }
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "agent",
+            "type": "pubkey"
+          },
+          {
+            "name": "destination",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "decision_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "agent",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "max_per_tx",
+            "type": "u64"
+          },
+          {
+            "name": "daily_limit",
+            "type": "u64"
+          },
+          {
+            "name": "spent_today",
+            "type": "u64"
+          },
+          {
+            "name": "window_start",
+            "type": "i64"
+          },
+          {
+            "name": "is_frozen",
+            "type": "bool"
+          },
+          {
+            "name": "total_executions",
+            "type": "u64"
+          },
+          {
+            "name": "allowed_recipients",
+            "type": {
+              "array": [
+                "pubkey",
+                8
+              ]
+            }
+          },
+          {
+            "name": "recipient_count",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
         ]
       }
     }
