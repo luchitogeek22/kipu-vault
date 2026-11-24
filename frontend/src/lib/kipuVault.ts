@@ -3,7 +3,7 @@ import {
   BN,
   Idl,
   Program,
-} from "@coral-xyz/anchor";
+} from "@anchor-lang/core";
 import type { AnchorWallet } from "@solana/wallet-adapter-react";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,

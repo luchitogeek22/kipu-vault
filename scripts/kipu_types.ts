@@ -1,4 +1,4 @@
-import type { BN } from "@coral-xyz/anchor";
+import type { BN } from "@anchor-lang/core";
 import type { PublicKey, Transaction } from "@solana/web3.js";
 
 export interface VaultStateView {

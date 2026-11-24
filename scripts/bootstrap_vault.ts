@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
-import * as anchor from "@coral-xyz/anchor";
-import { BN, Program, Idl } from "@coral-xyz/anchor";
+import * as anchor from "@anchor-lang/core";
+import { BN, Program, Idl } from "@anchor-lang/core";
 import { Connection, Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,

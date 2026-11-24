@@ -4,15 +4,15 @@ Este documento fija las versiones exactas del stack sin rangos abiertos (`SPEC.m
 
 | Componente | Versión exacta | Archivo donde se fija |
 | --- | --- | --- |
-| Rust (`rustc`) | `1.79.0` | `rust-toolchain.toml`, `.devcontainer/devcontainer.json` |
-| Solana CLI (`agave` / `solana`) | `1.18.26` | `Anchor.toml`, `.devcontainer/setup.sh` |
-| Anchor CLI / `anchor-lang` / `anchor-spl` | `0.30.1` | `Anchor.toml`, `programs/kipu_vault/Cargo.toml`, `package.json`, `frontend/package.json` |
-| Node.js (Windows local / Codespaces) | `26.13.0` / `22` | Entorno local / `.devcontainer/devcontainer.json` |
-| npm | `11.20.0` | Entorno local |
-| `@coral-xyz/anchor` | `0.30.1` | `package.json`, `frontend/package.json` |
+| Rust (`rustc`) | `1.89.0` | `rust-toolchain.toml`, `.devcontainer/devcontainer.json`, `.github/workflows/ci.yml` |
+| Solana / Agave CLI (`agave`) | `4.1.2` | `Anchor.toml`, `.devcontainer/setup.sh`, `.github/workflows/ci.yml` |
+| `cargo-build-sbf` | `4.1.0` | `.devcontainer/setup.sh`, `.github/workflows/ci.yml` |
+| Anchor CLI / `anchor-lang` / `anchor-spl` | `1.2.1` | `Anchor.toml`, `programs/kipu_vault/Cargo.toml`, `.devcontainer/setup.sh`, `.github/workflows/ci.yml` |
+| Node.js (Windows local / CI & Codespaces) | `22` LTS (`>= 20.18`) | `.github/workflows/ci.yml`, `.devcontainer/devcontainer.json` |
+| `@anchor-lang/core` | `1.2.1` | `package.json`, `frontend/package.json` |
 | `@solana/web3.js` (raíz / frontend) | `1.98.4` / `1.99.0` | `package.json`, `frontend/package.json` |
 | `@solana/spl-token` | `0.4.9` | `package.json`, `frontend/package.json` |
-| `anchor-bankrun` / `solana-bankrun` | `0.5.0` / `0.4.0` | `package.json` |
+| `litesvm` / `anchor-litesvm` | `0.3.3` / `0.2.1` | `package.json` |
 | Next.js / React / Tailwind | `15.5.29` / `19.1.0` / `3.4.17` | `frontend/package.json` |
 | Python | `3.12.10` | `backend/requirements.txt` (entorno local / Codespaces `3.12`) |
 | FastAPI / Pydantic / Uvicorn | `0.165.0` / `2.14.4` / `0.54.0` | `backend/requirements.txt` |

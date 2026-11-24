@@ -44,6 +44,6 @@ pub fn deposit_handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
         to: ctx.accounts.vault_token_account.to_account_info(),
         authority: ctx.accounts.owner.to_account_info(),
     };
-    let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
+    let cpi_ctx = CpiContext::new(ctx.accounts.token_program.key(), cpi_accounts);
     token::transfer_checked(cpi_ctx, amount, ctx.accounts.mint.decimals)
 }

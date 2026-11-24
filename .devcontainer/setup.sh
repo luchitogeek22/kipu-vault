@@ -5,9 +5,9 @@ sudo apt-get update
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
   build-essential pkg-config libudev-dev libssl-dev llvm clang curl git ca-certificates
 
-# Solana CLI v1.18.26 (Anza release)
+# Agave / Solana CLI v4.1.2 (Anza release)
 if ! command -v solana >/dev/null 2>&1; then
-  sh -c "$(curl -sSfL https://release.anza.xyz/v1.18.26/install)"
+  sh -c "$(curl -sSfL https://release.anza.xyz/v4.1.2/install)"
 fi
 
 SOLANA_BIN="$HOME/.local/share/solana/install/active_release/bin"
@@ -22,12 +22,16 @@ if [ ! -f "$HOME/.config/solana/id.json" ]; then
 fi
 solana config set --url https://api.devnet.solana.com
 
-# Anchor CLI 0.30.1 via avm
-if ! command -v avm >/dev/null 2>&1; then
-  cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
+if ! command -v cargo-build-sbf >/dev/null 2>&1; then
+  cargo install cargo-build-sbf --version 4.1.0 --locked
 fi
-avm install 0.30.1
-avm use 0.30.1
+
+# Anchor CLI 1.2.1 via avm (fallback to direct cargo install)
+if ! command -v avm >/dev/null 2>&1; then
+  cargo install avm --locked --force
+fi
+avm install 1.2.1
+avm use 1.2.1
 
 # Node dependencies (tests, Devnet scripts, and frontend)
 npm install
@@ -43,4 +47,4 @@ echo "=== KipuVault Codespace listo ==="
 echo "Ejecuta ahora:"
 echo "  anchor build && anchor keys sync && anchor build"
 echo "  npm run sync:idl"
-echo "  anchor test --skip-local-validator"
+echo "  anchor test --skip-local-validator --skip-deploy --skip-build"

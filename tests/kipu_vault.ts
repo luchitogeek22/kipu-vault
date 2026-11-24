@@ -1,10 +1,10 @@
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
-import * as anchor from "@coral-xyz/anchor";
-import { BN, EventParser, Idl, Program } from "@coral-xyz/anchor";
-import { BankrunProvider, startAnchor } from "anchor-bankrun";
-import { Clock, ProgramTestContext } from "solana-bankrun";
+import * as anchor from "@anchor-lang/core";
+import { BN, EventParser, Idl, Program, Provider } from "@anchor-lang/core";
+import { fromWorkspace, LiteSVMProvider } from "anchor-litesvm";
+import { FailedTransactionMetadata, LiteSVM } from "litesvm";
 import {
   Keypair,
   PublicKey,
@@ -20,7 +20,6 @@ import {
   createInitializeMint2Instruction,
   createMintToCheckedInstruction,
   getAssociatedTokenAddressSync,
-  getMinimumBalanceForRentExemptMint,
 } from "@solana/spl-token";
 import { expect } from "chai";
 import type {
@@ -71,64 +70,71 @@ function deriveVaultPda(
   return pda;
 }
 
-async function resolveBlockhash(context: ProgramTestContext): Promise<string> {
-  const latest = await context.banksClient.getLatestBlockhash();
-  return latest ? latest[0] : context.lastBlockhash;
-}
-
-async function sendBankrunTx(
-  context: ProgramTestContext,
+function sendLiteSvmTx(
+  svm: LiteSVM,
+  payer: Keypair,
   tx: Transaction,
   signers: Keypair[]
-): Promise<string[]> {
-  tx.recentBlockhash = await resolveBlockhash(context);
-  tx.feePayer = context.payer.publicKey;
-  tx.sign(context.payer, ...signers);
-  const meta = await context.banksClient.processTransaction(tx);
-  return meta.logMessages;
+): string[] {
+  tx.recentBlockhash = svm.latestBlockhash();
+  tx.feePayer = payer.publicKey;
+  tx.sign(payer, ...signers);
+  const res = svm.sendTransaction(tx);
+  svm.expireBlockhash();
+  if (res instanceof FailedTransactionMetadata) {
+    throw new Error(
+      `LiteSVM transaction failed: ${res.err().toString()}\nLogs:\n${res.meta().logs().join("\n")}`
+    );
+  }
+  return res.logs();
 }
 
-async function tryBankrunTx(
-  context: ProgramTestContext,
+function tryLiteSvmTx(
+  svm: LiteSVM,
+  payer: Keypair,
   tx: Transaction,
   signers: Keypair[]
-): Promise<{ result: string | null; logs: string[] }> {
-  tx.recentBlockhash = await resolveBlockhash(context);
-  tx.feePayer = context.payer.publicKey;
-  tx.sign(context.payer, ...signers);
-  const res = await context.banksClient.tryProcessTransaction(tx);
+): { result: string | null; logs: string[] } {
+  tx.recentBlockhash = svm.latestBlockhash();
+  tx.feePayer = payer.publicKey;
+  tx.sign(payer, ...signers);
+  const res = svm.sendTransaction(tx);
+  svm.expireBlockhash();
+  if (res instanceof FailedTransactionMetadata) {
+    return {
+      result: res.err().toString(),
+      logs: res.meta().logs(),
+    };
+  }
   return {
-    result: res.result,
-    logs: res.meta?.logMessages ?? [],
+    result: null,
+    logs: res.logs(),
   };
 }
 
-async function fundSystemAccount(
-  context: ProgramTestContext,
+function fundSystemAccount(
+  svm: LiteSVM,
   pubkey: PublicKey,
   lamports = 2_000_000_000
-): Promise<void> {
-  const tx = new Transaction().add(
-    SystemProgram.transfer({
-      fromPubkey: context.payer.publicKey,
-      toPubkey: pubkey,
-      lamports,
-    })
-  );
-  await sendBankrunTx(context, tx, []);
+): void {
+  const res = svm.airdrop(pubkey, BigInt(lamports));
+  if (res instanceof FailedTransactionMetadata) {
+    throw new Error(
+      `LiteSVM airdrop failed for ${pubkey.toBase58()}: ${res.err().toString()}`
+    );
+  }
 }
 
-async function createSplMint(
-  context: ProgramTestContext,
+function createSplMint(
+  svm: LiteSVM,
+  payer: Keypair,
   mintAuthority: PublicKey
-): Promise<PublicKey> {
+): PublicKey {
   const mintKp = Keypair.generate();
-  const rent = await getMinimumBalanceForRentExemptMint(
-    new BankrunProvider(context).connection
-  );
+  const rent = Number(svm.minimumBalanceForRentExemption(BigInt(MINT_SIZE)));
   const tx = new Transaction().add(
     SystemProgram.createAccount({
-      fromPubkey: context.payer.publicKey,
+      fromPubkey: payer.publicKey,
       newAccountPubkey: mintKp.publicKey,
       space: MINT_SIZE,
       lamports: rent,
@@ -142,17 +148,18 @@ async function createSplMint(
       TOKEN_PROGRAM_ID
     )
   );
-  await sendBankrunTx(context, tx, [mintKp]);
+  sendLiteSvmTx(svm, payer, tx, [mintKp]);
   return mintKp.publicKey;
 }
 
-async function createAtaAndMint(
-  context: ProgramTestContext,
+function createAtaAndMint(
+  svm: LiteSVM,
+  payer: Keypair,
   mint: PublicKey,
   owner: PublicKey,
   mintAuthority: Keypair | null,
   amount: bigint
-): Promise<PublicKey> {
+): PublicKey {
   const ata = getAssociatedTokenAddressSync(
     mint,
     owner,
@@ -162,7 +169,7 @@ async function createAtaAndMint(
   );
   const tx = new Transaction().add(
     createAssociatedTokenAccountInstruction(
-      context.payer.publicKey,
+      payer.publicKey,
       ata,
       owner,
       mint,
@@ -187,19 +194,16 @@ async function createAtaAndMint(
     );
   }
   const signers = amount > 0n && mintAuthority ? [mintAuthority] : [];
-  await sendBankrunTx(context, tx, signers);
+  sendLiteSvmTx(svm, payer, tx, signers);
   return ata;
 }
 
-async function getTokenBalance(
-  context: ProgramTestContext,
-  tokenAccount: PublicKey
-): Promise<bigint> {
-  const info = await context.banksClient.getAccount(tokenAccount);
+function getTokenBalance(svm: LiteSVM, tokenAccount: PublicKey): bigint {
+  const info = svm.getAccount(tokenAccount);
   if (!info) {
     throw new Error(`Token account not found: ${tokenAccount.toBase58()}`);
   }
-  const decoded = AccountLayout.decode(info.data);
+  const decoded = AccountLayout.decode(Buffer.from(info.data));
   return decoded.amount;
 }
 
@@ -210,18 +214,43 @@ function expectKipuErrorResult(
   const code = KIPU_ERRORS[errorName];
   const hexCode = `0x${code.toString(16)}`;
   const joinedLogs = outcome.logs.join("\n");
+  const resultText = outcome.result ?? "";
   expect(outcome.result, `Expected ${errorName} (${code}), but tx succeeded`).to.not.be.null;
   const hasName = joinedLogs.includes(errorName);
-  const hasDecimal = joinedLogs.includes(String(code));
-  const hasHex = (outcome.result ?? "").toLowerCase().includes(hexCode) ||
+  const hasDecimal =
+    joinedLogs.includes(String(code)) || resultText.includes(String(code));
+  const hasHex =
+    resultText.toLowerCase().includes(hexCode) ||
     joinedLogs.toLowerCase().includes(hexCode);
   expect(
     hasName || hasDecimal || hasHex,
-    `Expected KipuError::${errorName} (${code} / ${hexCode}), got result="${outcome.result}" logs:\n${joinedLogs}`
+    `Expected KipuError::${errorName} (${code} / ${hexCode}), got result="${resultText}" logs:\n${joinedLogs}`
   ).to.be.true;
 }
 
-describe("kipu_vault (anchor-bankrun)", () => {
+function createLiteSvmEnv(idl: Idl): {
+  svm: LiteSVM;
+  payer: Keypair;
+  provider: LiteSVMProvider;
+  program: Program;
+  methods: KipuVaultMethods;
+} {
+  const svm = fromWorkspace(ROOT_DIR);
+  const initialClock = svm.getClock();
+  initialClock.unixTimestamp = 1_700_000_000n;
+  svm.setClock(initialClock);
+
+  const payer = Keypair.generate();
+  fundSystemAccount(svm, payer.publicKey, 100_000_000_000);
+
+  const provider = new LiteSVMProvider(svm);
+  anchor.setProvider(provider as unknown as Provider);
+  const program = new Program(idl, provider as unknown as Provider);
+  const methods = program.methods as unknown as KipuVaultMethods;
+  return { svm, payer, provider, program, methods };
+}
+
+describe("kipu_vault (anchor-litesvm)", () => {
   let idl: Idl;
 
   before(() => {
@@ -239,38 +268,37 @@ describe("kipu_vault (anchor-bankrun)", () => {
     initialOwnerMintAmount?: bigint;
     initialDeposit?: BN;
   }) {
-    const context = await startAnchor(ROOT_DIR, [], []);
-    const provider = new BankrunProvider(context);
-    anchor.setProvider(provider);
-    const program = new Program(idl, provider);
-    const methods = program.methods as unknown as KipuVaultMethods;
+    const { svm, payer, provider, program, methods } = createLiteSvmEnv(idl);
 
     const owner = Keypair.generate();
     const agent = Keypair.generate();
     const recipient = Keypair.generate();
     const attacker = Keypair.generate();
 
-    await fundSystemAccount(context, owner.publicKey);
-    await fundSystemAccount(context, agent.publicKey);
-    await fundSystemAccount(context, attacker.publicKey);
+    fundSystemAccount(svm, owner.publicKey);
+    fundSystemAccount(svm, agent.publicKey);
+    fundSystemAccount(svm, attacker.publicKey);
 
-    const mint = await createSplMint(context, owner.publicKey);
-    const ownerAta = await createAtaAndMint(
-      context,
+    const mint = createSplMint(svm, payer, owner.publicKey);
+    const ownerAta = createAtaAndMint(
+      svm,
+      payer,
       mint,
       owner.publicKey,
       owner,
       opts?.initialOwnerMintAmount ?? BigInt(1_000 * USDC)
     );
-    const recipientAta = await createAtaAndMint(
-      context,
+    const recipientAta = createAtaAndMint(
+      svm,
+      payer,
       mint,
       recipient.publicKey,
       null,
       0n
     );
-    const attackerAta = await createAtaAndMint(
-      context,
+    const attackerAta = createAtaAndMint(
+      svm,
+      payer,
       mint,
       attacker.publicKey,
       null,
@@ -301,7 +329,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       })
       .transaction();
-    await sendBankrunTx(context, initTx, [owner]);
+    sendLiteSvmTx(svm, payer, initTx, [owner]);
 
     if (opts?.initialDeposit && opts.initialDeposit.gt(new BN(0))) {
       const depTx = await methods
@@ -315,7 +343,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
           tokenProgram: TOKEN_PROGRAM_ID,
         })
         .transaction();
-      await sendBankrunTx(context, depTx, [owner]);
+      sendLiteSvmTx(svm, payer, depTx, [owner]);
     }
 
     const fetchVault = async (): Promise<VaultStateView> => {
@@ -324,7 +352,8 @@ describe("kipu_vault (anchor-bankrun)", () => {
     };
 
     return {
-      context,
+      svm,
+      payer,
       provider,
       program,
       methods,
@@ -360,21 +389,17 @@ describe("kipu_vault (anchor-bankrun)", () => {
     expect(state.totalExecutions.toNumber()).to.equal(0);
     expect(state.recipientCount).to.equal(0);
 
-    const vaultAtaBalance = await getTokenBalance(f.context, f.vaultAta);
+    const vaultAtaBalance = getTokenBalance(f.svm, f.vaultAta);
     expect(vaultAtaBalance).to.equal(0n);
   });
 
   it("2. Inicialización inválida: max_per_tx = 0, daily_limit < max_per_tx, agent == owner", async () => {
-    const context = await startAnchor(ROOT_DIR, [], []);
-    const provider = new BankrunProvider(context);
-    anchor.setProvider(provider);
-    const program = new Program(idl, provider);
-    const methods = program.methods as unknown as KipuVaultMethods;
+    const { svm, payer, program, methods } = createLiteSvmEnv(idl);
 
     const owner = Keypair.generate();
     const agent = Keypair.generate();
-    await fundSystemAccount(context, owner.publicKey);
-    const mint = await createSplMint(context, owner.publicKey);
+    fundSystemAccount(svm, owner.publicKey);
+    const mint = createSplMint(svm, payer, owner.publicKey);
     const vault = deriveVaultPda(program.programId, owner.publicKey, mint);
     const vaultAta = getAssociatedTokenAddressSync(
       mint,
@@ -403,7 +428,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         })
         .transaction();
-      const res = await tryBankrunTx(context, tx, [owner]);
+      const res = tryLiteSvmTx(svm, payer, tx, [owner]);
       expectKipuErrorResult(res, "InvalidPolicyConfig");
     }
   });
@@ -423,8 +448,8 @@ describe("kipu_vault (anchor-bankrun)", () => {
         tokenProgram: TOKEN_PROGRAM_ID,
       })
       .transaction();
-    await sendBankrunTx(f.context, txOk, [f.owner]);
-    expect(await getTokenBalance(f.context, f.vaultAta)).to.equal(BigInt(100 * USDC));
+    sendLiteSvmTx(f.svm, f.payer, txOk, [f.owner]);
+    expect(getTokenBalance(f.svm, f.vaultAta)).to.equal(BigInt(100 * USDC));
 
     const txZero = await f.methods
       .deposit(new BN(0))
@@ -437,7 +462,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
         tokenProgram: TOKEN_PROGRAM_ID,
       })
       .transaction();
-    const resZero = await tryBankrunTx(f.context, txZero, [f.owner]);
+    const resZero = tryLiteSvmTx(f.svm, f.payer, txZero, [f.owner]);
     expectKipuErrorResult(resZero, "InvalidAmount");
   });
 
@@ -450,7 +475,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
       .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
       .transaction();
     expectKipuErrorResult(
-      await tryBankrunTx(f.context, txDefault, [f.owner]),
+      tryLiteSvmTx(f.svm, f.payer, txDefault, [f.owner]),
       "InvalidPolicyConfig"
     );
 
@@ -466,7 +491,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
         .addRecipient(r)
         .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
         .transaction();
-      await sendBankrunTx(f.context, tx, [f.owner]);
+      sendLiteSvmTx(f.svm, f.payer, tx, [f.owner]);
     }
 
     const state = await f.fetchVault();
@@ -478,7 +503,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
       .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
       .transaction();
     expectKipuErrorResult(
-      await tryBankrunTx(f.context, txDup, [f.owner]),
+      tryLiteSvmTx(f.svm, f.payer, txDup, [f.owner]),
       "RecipientAlreadyExists"
     );
 
@@ -488,7 +513,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
       .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
       .transaction();
     expectKipuErrorResult(
-      await tryBankrunTx(f.context, txNinth, [f.owner]),
+      tryLiteSvmTx(f.svm, f.payer, txNinth, [f.owner]),
       "RecipientListFull"
     );
   });
@@ -500,7 +525,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
       .addRecipient(f.recipient.publicKey)
       .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
       .transaction();
-    await sendBankrunTx(f.context, addTx, [f.owner]);
+    sendLiteSvmTx(f.svm, f.payer, addTx, [f.owner]);
 
     const amount = new BN(5 * USDC);
     const decisionHash = makeHash("pay-5-usdc-code-review");
@@ -516,10 +541,10 @@ describe("kipu_vault (anchor-bankrun)", () => {
         tokenProgram: TOKEN_PROGRAM_ID,
       })
       .transaction();
-    const logs = await sendBankrunTx(f.context, execTx, [f.agent]);
+    const logs = sendLiteSvmTx(f.svm, f.payer, execTx, [f.agent]);
 
-    expect(await getTokenBalance(f.context, f.recipientAta)).to.equal(BigInt(5 * USDC));
-    expect(await getTokenBalance(f.context, f.vaultAta)).to.equal(BigInt(95 * USDC));
+    expect(getTokenBalance(f.svm, f.recipientAta)).to.equal(BigInt(5 * USDC));
+    expect(getTokenBalance(f.svm, f.vaultAta)).to.equal(BigInt(95 * USDC));
 
     const state = await f.fetchVault();
     expect(state.spentToday.toNumber()).to.equal(5 * USDC);
@@ -552,8 +577,9 @@ describe("kipu_vault (anchor-bankrun)", () => {
       initialDeposit: new BN(100 * USDC),
     });
 
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .addRecipient(f.recipient.publicKey)
         .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
@@ -574,7 +600,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
       .transaction();
 
     expectKipuErrorResult(
-      await tryBankrunTx(f.context, tx, [f.agent]),
+      tryLiteSvmTx(f.svm, f.payer, tx, [f.agent]),
       "ExceedsTransactionLimit"
     );
   });
@@ -586,8 +612,9 @@ describe("kipu_vault (anchor-bankrun)", () => {
       initialDeposit: new BN(100 * USDC),
     });
 
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .addRecipient(f.recipient.publicKey)
         .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
@@ -607,7 +634,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
           tokenProgram: TOKEN_PROGRAM_ID,
         })
         .transaction();
-      await sendBankrunTx(f.context, tx, [f.agent]);
+      sendLiteSvmTx(f.svm, f.payer, tx, [f.agent]);
     }
 
     // 20 USDC spent, daily_limit = 25 USDC; 6 USDC pushes to 26 -> ExceedsDailyLimit
@@ -624,7 +651,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
       .transaction();
 
     expectKipuErrorResult(
-      await tryBankrunTx(f.context, txOver, [f.agent]),
+      tryLiteSvmTx(f.svm, f.payer, txOver, [f.agent]),
       "ExceedsDailyLimit"
     );
   });
@@ -636,8 +663,9 @@ describe("kipu_vault (anchor-bankrun)", () => {
       initialDeposit: new BN(100 * USDC),
     });
 
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .addRecipient(f.recipient.publicKey)
         .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
@@ -645,8 +673,9 @@ describe("kipu_vault (anchor-bankrun)", () => {
       [f.owner]
     );
 
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .agentExecute(new BN(10 * USDC), makeHash("day-1"))
         .accountsStrict({
@@ -674,24 +703,18 @@ describe("kipu_vault (anchor-bankrun)", () => {
       })
       .transaction();
     expectKipuErrorResult(
-      await tryBankrunTx(f.context, blockedTx, [f.agent]),
+      tryLiteSvmTx(f.svm, f.payer, blockedTx, [f.agent]),
       "ExceedsDailyLimit"
     );
 
-    // Advance Clock by 86,400 seconds
-    const currentClock = await f.context.banksClient.getClock();
-    f.context.setClock(
-      new Clock(
-        currentClock.slot + 10n,
-        currentClock.epochStartTimestamp,
-        currentClock.epoch,
-        currentClock.leaderScheduleEpoch,
-        currentClock.unixTimestamp + 86_400n
-      )
-    );
+    // Advance Clock by 86,400 seconds via LiteSVM getClock / setClock
+    const clock = f.svm.getClock();
+    clock.unixTimestamp = clock.unixTimestamp + 86_400n;
+    f.svm.setClock(clock);
 
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .agentExecute(new BN(10 * USDC), makeHash("day-2-ok"))
         .accountsStrict({
@@ -714,8 +737,9 @@ describe("kipu_vault (anchor-bankrun)", () => {
   it("9. VaultFrozen con la bóveda congelada", async () => {
     const f = await setupFixture({ initialDeposit: new BN(50 * USDC) });
 
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .addRecipient(f.recipient.publicKey)
         .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
@@ -723,8 +747,9 @@ describe("kipu_vault (anchor-bankrun)", () => {
       [f.owner]
     );
 
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .emergencyFreeze(true)
         .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
@@ -745,7 +770,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
       .transaction();
 
     expectKipuErrorResult(
-      await tryBankrunTx(f.context, tx, [f.agent]),
+      tryLiteSvmTx(f.svm, f.payer, tx, [f.agent]),
       "VaultFrozen"
     );
   });
@@ -753,8 +778,9 @@ describe("kipu_vault (anchor-bankrun)", () => {
   it("10. withdraw del owner exitoso con la bóveda congelada", async () => {
     const f = await setupFixture({ initialDeposit: new BN(50 * USDC) });
 
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .emergencyFreeze(true)
         .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
@@ -762,9 +788,10 @@ describe("kipu_vault (anchor-bankrun)", () => {
       [f.owner]
     );
 
-    const beforeOwner = await getTokenBalance(f.context, f.ownerAta);
-    await sendBankrunTx(
-      f.context,
+    const beforeOwner = getTokenBalance(f.svm, f.ownerAta);
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .withdraw(new BN(30 * USDC))
         .accountsStrict({
@@ -779,8 +806,8 @@ describe("kipu_vault (anchor-bankrun)", () => {
       [f.owner]
     );
 
-    expect(await getTokenBalance(f.context, f.vaultAta)).to.equal(BigInt(20 * USDC));
-    expect(await getTokenBalance(f.context, f.ownerAta)).to.equal(
+    expect(getTokenBalance(f.svm, f.vaultAta)).to.equal(BigInt(20 * USDC));
+    expect(getTokenBalance(f.svm, f.ownerAta)).to.equal(
       beforeOwner + BigInt(30 * USDC)
     );
   });
@@ -788,8 +815,9 @@ describe("kipu_vault (anchor-bankrun)", () => {
   it("11. Descongelar restablece al agente", async () => {
     const f = await setupFixture({ initialDeposit: new BN(50 * USDC) });
 
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .addRecipient(f.recipient.publicKey)
         .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
@@ -797,16 +825,18 @@ describe("kipu_vault (anchor-bankrun)", () => {
       [f.owner]
     );
 
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .emergencyFreeze(true)
         .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
         .transaction(),
       [f.owner]
     );
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .emergencyFreeze(false)
         .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
@@ -814,8 +844,9 @@ describe("kipu_vault (anchor-bankrun)", () => {
       [f.owner]
     );
 
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .agentExecute(new BN(5 * USDC), makeHash("after-unfreeze"))
         .accountsStrict({
@@ -830,7 +861,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
       [f.agent]
     );
 
-    expect(await getTokenBalance(f.context, f.recipientAta)).to.equal(BigInt(5 * USDC));
+    expect(getTokenBalance(f.svm, f.recipientAta)).to.equal(BigInt(5 * USDC));
   });
 
   it("12. RecipientNotAllowed (destino fuera de la allowlist) y también tras remove_recipient", async () => {
@@ -849,21 +880,23 @@ describe("kipu_vault (anchor-bankrun)", () => {
       })
       .transaction();
     expectKipuErrorResult(
-      await tryBankrunTx(f.context, txOut, [f.agent]),
+      tryLiteSvmTx(f.svm, f.payer, txOut, [f.agent]),
       "RecipientNotAllowed"
     );
 
     // Add then remove recipient -> must fail with RecipientNotAllowed
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .addRecipient(f.recipient.publicKey)
         .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
         .transaction(),
       [f.owner]
     );
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .removeRecipient(f.recipient.publicKey)
         .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
@@ -883,7 +916,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
       })
       .transaction();
     expectKipuErrorResult(
-      await tryBankrunTx(f.context, txAfterRemove, [f.agent]),
+      tryLiteSvmTx(f.svm, f.payer, txAfterRemove, [f.agent]),
       "RecipientNotAllowed"
     );
   });
@@ -891,8 +924,9 @@ describe("kipu_vault (anchor-bankrun)", () => {
   it("13. InvalidMint (token account de destino con otro mint)", async () => {
     const f = await setupFixture({ initialDeposit: new BN(50 * USDC) });
 
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .addRecipient(f.recipient.publicKey)
         .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
@@ -900,9 +934,10 @@ describe("kipu_vault (anchor-bankrun)", () => {
       [f.owner]
     );
 
-    const otherMint = await createSplMint(f.context, f.owner.publicKey);
-    const wrongMintDestAta = await createAtaAndMint(
-      f.context,
+    const otherMint = createSplMint(f.svm, f.payer, f.owner.publicKey);
+    const wrongMintDestAta = createAtaAndMint(
+      f.svm,
+      f.payer,
       otherMint,
       f.recipient.publicKey,
       null,
@@ -922,7 +957,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
       .transaction();
 
     expectKipuErrorResult(
-      await tryBankrunTx(f.context, tx, [f.agent]),
+      tryLiteSvmTx(f.svm, f.payer, tx, [f.agent]),
       "InvalidMint"
     );
   });
@@ -930,8 +965,9 @@ describe("kipu_vault (anchor-bankrun)", () => {
   it("14. InvalidDecisionHash (hash de ceros)", async () => {
     const f = await setupFixture({ initialDeposit: new BN(50 * USDC) });
 
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .addRecipient(f.recipient.publicKey)
         .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
@@ -953,15 +989,16 @@ describe("kipu_vault (anchor-bankrun)", () => {
       .transaction();
 
     expectKipuErrorResult(
-      await tryBankrunTx(f.context, tx, [f.agent]),
+      tryLiteSvmTx(f.svm, f.payer, tx, [f.agent]),
       "InvalidDecisionHash"
     );
   });
 
   it("15. El agente no puede withdraw, update_policy, emergency_freeze ni add_recipient (UnauthorizedOwner)", async () => {
     const f = await setupFixture({ initialDeposit: new BN(50 * USDC) });
-    const agentAta = await createAtaAndMint(
-      f.context,
+    const agentAta = createAtaAndMint(
+      f.svm,
+      f.payer,
       f.mint,
       f.agent.publicKey,
       null,
@@ -996,7 +1033,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
 
     for (const tx of txs) {
       expectKipuErrorResult(
-        await tryBankrunTx(f.context, tx, [f.agent]),
+        tryLiteSvmTx(f.svm, f.payer, tx, [f.agent]),
         "UnauthorizedOwner"
       );
     }
@@ -1005,8 +1042,9 @@ describe("kipu_vault (anchor-bankrun)", () => {
   it("16. Un tercero no puede congelar ni modificar nada", async () => {
     const f = await setupFixture({ initialDeposit: new BN(50 * USDC) });
 
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .addRecipient(f.recipient.publicKey)
         .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
@@ -1046,7 +1084,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
 
     for (const tx of ownerOnlyTxs) {
       expectKipuErrorResult(
-        await tryBankrunTx(f.context, tx, [f.attacker]),
+        tryLiteSvmTx(f.svm, f.payer, tx, [f.attacker]),
         "UnauthorizedOwner"
       );
     }
@@ -1064,7 +1102,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
       .transaction();
 
     expectKipuErrorResult(
-      await tryBankrunTx(f.context, agentTx, [f.attacker]),
+      tryLiteSvmTx(f.svm, f.payer, agentTx, [f.attacker]),
       "UnauthorizedAgent"
     );
   });
@@ -1075,8 +1113,9 @@ describe("kipu_vault (anchor-bankrun)", () => {
       dailyLimit: new BN(25 * USDC),
     });
 
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .updatePolicy(null, new BN(20 * USDC), new BN(80 * USDC))
         .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
@@ -1093,7 +1132,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
       .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
       .transaction();
     expectKipuErrorResult(
-      await tryBankrunTx(f.context, txInvalidLimits, [f.owner]),
+      tryLiteSvmTx(f.svm, f.payer, txInvalidLimits, [f.owner]),
       "InvalidPolicyConfig"
     );
 
@@ -1102,7 +1141,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
       .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
       .transaction();
     expectKipuErrorResult(
-      await tryBankrunTx(f.context, txAgentIsOwner, [f.owner]),
+      tryLiteSvmTx(f.svm, f.payer, txAgentIsOwner, [f.owner]),
       "InvalidPolicyConfig"
     );
   });
@@ -1111,8 +1150,9 @@ describe("kipu_vault (anchor-bankrun)", () => {
     const f = await setupFixture({ initialDeposit: new BN(50 * USDC) });
     const newAgent = Keypair.generate();
 
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .addRecipient(f.recipient.publicKey)
         .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
@@ -1120,8 +1160,9 @@ describe("kipu_vault (anchor-bankrun)", () => {
       [f.owner]
     );
 
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .updatePolicy(newAgent.publicKey, null, null)
         .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
@@ -1141,13 +1182,14 @@ describe("kipu_vault (anchor-bankrun)", () => {
       })
       .transaction();
     expectKipuErrorResult(
-      await tryBankrunTx(f.context, oldAgentTx, [f.agent]),
+      tryLiteSvmTx(f.svm, f.payer, oldAgentTx, [f.agent]),
       "UnauthorizedAgent"
     );
 
     // New agent succeeds
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .agentExecute(new BN(5 * USDC), makeHash("new-agent"))
         .accountsStrict({
@@ -1161,7 +1203,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
         .transaction(),
       [newAgent]
     );
-    expect(await getTokenBalance(f.context, f.recipientAta)).to.equal(BigInt(5 * USDC));
+    expect(getTokenBalance(f.svm, f.recipientAta)).to.equal(BigInt(5 * USDC));
   });
 
   it("19. MathOverflow con daily_limit = u64::MAX y spent_today cerca del máximo", async () => {
@@ -1175,8 +1217,9 @@ describe("kipu_vault (anchor-bankrun)", () => {
       initialDeposit: u64Max,
     });
 
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .addRecipient(f.recipient.publicKey)
         .accountsStrict({ owner: f.owner.publicKey, vault: f.vault })
@@ -1185,8 +1228,9 @@ describe("kipu_vault (anchor-bankrun)", () => {
     );
 
     // Spend u64::MAX - 5 -> succeeds
-    await sendBankrunTx(
-      f.context,
+    sendLiteSvmTx(
+      f.svm,
+      f.payer,
       await f.methods
         .agentExecute(firstSpend, makeHash("near-u64-max"))
         .accountsStrict({
@@ -1215,7 +1259,7 @@ describe("kipu_vault (anchor-bankrun)", () => {
       .transaction();
 
     expectKipuErrorResult(
-      await tryBankrunTx(f.context, overflowTx, [f.agent]),
+      tryLiteSvmTx(f.svm, f.payer, overflowTx, [f.agent]),
       "MathOverflow"
     );
   });
@@ -1223,8 +1267,8 @@ describe("kipu_vault (anchor-bankrun)", () => {
   it("20. withdraw por encima del saldo falla sin cambiar el estado", async () => {
     const f = await setupFixture({ initialDeposit: new BN(20 * USDC) });
 
-    const beforeVaultBal = await getTokenBalance(f.context, f.vaultAta);
-    const beforeOwnerBal = await getTokenBalance(f.context, f.ownerAta);
+    const beforeVaultBal = getTokenBalance(f.svm, f.vaultAta);
+    const beforeOwnerBal = getTokenBalance(f.svm, f.ownerAta);
     const beforeState = await f.fetchVault();
 
     const tx = await f.methods
@@ -1239,11 +1283,11 @@ describe("kipu_vault (anchor-bankrun)", () => {
       })
       .transaction();
 
-    const res = await tryBankrunTx(f.context, tx, [f.owner]);
+    const res = tryLiteSvmTx(f.svm, f.payer, tx, [f.owner]);
     expect(res.result).to.not.be.null;
 
-    expect(await getTokenBalance(f.context, f.vaultAta)).to.equal(beforeVaultBal);
-    expect(await getTokenBalance(f.context, f.ownerAta)).to.equal(beforeOwnerBal);
+    expect(getTokenBalance(f.svm, f.vaultAta)).to.equal(beforeVaultBal);
+    expect(getTokenBalance(f.svm, f.ownerAta)).to.equal(beforeOwnerBal);
     const afterState = await f.fetchVault();
     expect(afterState.spentToday.toString()).to.equal(beforeState.spentToday.toString());
     expect(afterState.totalExecutions.toString()).to.equal(
