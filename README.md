@@ -52,14 +52,14 @@ KipuVau1t1111111111111111111111111111111111
    npm run sync:idl
    anchor test --skip-local-validator --skip-deploy --skip-build
    ```
-2. **Despliega en Devnet, aplica Supabase y configura variables de entorno**:
+2. **Despliega en Devnet, aplica Supabase y configura variables de entorno** *(ver guía completa paso a paso en [DEPLOY.md](DEPLOY.md))*:
    ```bash
-   cp .env.example .env
-   # Carga supabase/schema.sql en tu proyecto Supabase y completa .env
-   solana airdrop 2 --url devnet
-   anchor deploy --provider.cluster devnet
+   npm run deploy:devnet
    npm run setup:devnet
    npm run bootstrap:vault
+   cp .env.example .env
+   cp frontend/.env.example frontend/.env.local
+   # Carga supabase/schema.sql en tu proyecto Supabase y completa .env + frontend/.env.local
    ```
 3. **Levanta Backend + Frontend**:
    ```bash

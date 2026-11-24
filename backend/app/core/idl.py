@@ -9,6 +9,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _resolve_idl_path(idl_path: str | Path) -> Path:
+    """Resolve relative IDL paths against CWD first, falling back to REPO_ROOT."""
+    candidate = Path(idl_path)
+    if not candidate.is_absolute() and not candidate.exists():
+        repo_candidate = _REPO_ROOT / candidate
+        if repo_candidate.exists():
+            return repo_candidate
+    return candidate
+
 
 @dataclass(frozen=True, slots=True)
 class IdlErrorEntry:
@@ -23,7 +35,7 @@ class KipuIdlRegistry:
     """Loads Anchor IDL errors and computes instruction discriminators dynamically."""
 
     def __init__(self, idl_path: str | Path) -> None:
-        self.idl_path = Path(idl_path)
+        self.idl_path = _resolve_idl_path(idl_path)
         self._errors_by_code: dict[int, IdlErrorEntry] = {}
         self._program_address: str | None = None
         self._loaded = False

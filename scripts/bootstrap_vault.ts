@@ -72,7 +72,11 @@ async function main(): Promise<void> {
   const programId = new PublicKey(
     process.env.KIPU_PROGRAM_ID ?? (idl as { address?: string }).address ?? ""
   );
-  const program = new Program(idl, provider);
+  const idlWithAddress = {
+    ...(idl as unknown as Record<string, unknown>),
+    address: programId.toBase58(),
+  } as unknown as Idl;
+  const program = new Program(idlWithAddress, provider);
   const methods = program.methods as unknown as KipuVaultMethods;
   const vaultAccounts = program.account as unknown as KipuVaultAccountsNamespace;
 

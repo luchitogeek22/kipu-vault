@@ -88,13 +88,59 @@ jobs:
           npm ci --no-audit --no-fund
           npm run typecheck
 
+      - name: Validate shell scripts syntax
+        run: |
+          bash -n .devcontainer/setup.sh
+          bash -n scripts/deploy_devnet.sh
+
       - name: Anchor Build & IDL Check
         run: |
           anchor build
           anchor keys sync
           anchor build
+          npm run sync:idl
           test -f target/idl/kipu_vault.json
           test -f target/deploy/kipu_vault.so
+          node - <<'EOF'
+          const fs = require("fs");
+          const idl = JSON.parse(fs.readFileSync("target/idl/kipu_vault.json", "utf8"));
+          const expectedIxs = [
+            "initialize_vault",
+            "deposit",
+            "withdraw",
+            "agent_execute",
+            "update_policy",
+            "emergency_freeze",
+            "add_recipient",
+            "remove_recipient",
+          ];
+          const ixNames = (idl.instructions || []).map((ix) => ix.name);
+          for (const name of expectedIxs) {
+            if (!ixNames.includes(name)) {
+              throw new Error(`Missing instruction in IDL: ${name}`);
+            }
+          }
+          const accounts = (idl.accounts || []).map((a) => a.name);
+          if (!accounts.includes("VaultState")) {
+            throw new Error("Missing VaultState account in IDL");
+          }
+          const events = (idl.events || []).map((e) => e.name);
+          if (!events.includes("KipuAuditEvent")) {
+            throw new Error("Missing KipuAuditEvent event in IDL");
+          }
+          const errors = idl.errors || [];
+          if (errors.length !== 14) {
+            throw new Error(`Expected 14 IDL errors, got ${errors.length}`);
+          }
+          for (let i = 0; i < 14; i++) {
+            if (errors[i].code !== 6000 + i) {
+              throw new Error(`Unexpected error code at index ${i}: ${errors[i].code}`);
+            }
+          }
+          console.log(
+            `IDL verified: ${ixNames.length} instructions, ${errors.length} errors, address=${idl.address}`
+          );
+          EOF
 
       - name: Anchor Test (20 anchor-litesvm cases)
         run: anchor test --skip-local-validator --skip-deploy --skip-build
@@ -159,9 +205,16 @@ jobs:
 
   frontend-phase3:
     name: Phase 3 — Frontend Lint & Next.js Build
+    needs: anchor-phase1
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download Anchor 1.2.1 IDL artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: kipu-vault-idl
+          path: frontend/src/idl
 
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
@@ -171,6 +224,23 @@ jobs:
       - name: Install frontend deps, lint, and build
         working-directory: frontend
         run: |
+          test -f src/idl/kipu_vault.json
           npm ci --no-audit --no-fund
           npm run lint
           npm run build
+
+  docker-build-check:
+    name: Phase 4 — Docker Production Image Builds
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend & frontend production images
+        run: |
+          docker build -f backend/Dockerfile -t kipu-vault-backend:ci .
+          docker build -f frontend/Dockerfile -t kipu-vault-frontend:ci frontend
+
+      - name: Smoke-test backend container image
+        run: |
+          docker run --rm kipu-vault-backend:ci \
+            python -c "from app.main import app; from app.core.idl import KipuIdlRegistry; r = KipuIdlRegistry('/app/target/idl/kipu_vault.json'); assert r.is_loaded and r.lookup_error(6003).name == 'ExceedsTransactionLimit'; print('backend container ok:', app.title)"

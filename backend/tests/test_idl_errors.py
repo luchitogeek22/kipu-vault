@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
+from app.core.config import REPO_ROOT, Settings
 from app.core.idl import KipuIdlRegistry, explain_error_es, extract_custom_error_code
 
 
@@ -44,3 +47,50 @@ def test_idl_missing_file_starts_unloaded(tmp_path: Path) -> None:
     missing = KipuIdlRegistry(tmp_path / "does_not_exist.json")
     assert missing.is_loaded is False
     assert missing.lookup_error(6000) is None
+
+
+def test_idl_contains_all_14_spec_error_codes(idl_registry: KipuIdlRegistry) -> None:
+    expected = {
+        6000: "UnauthorizedOwner",
+        6001: "UnauthorizedAgent",
+        6002: "VaultFrozen",
+        6003: "ExceedsTransactionLimit",
+        6004: "ExceedsDailyLimit",
+        6005: "InvalidPolicyConfig",
+        6006: "InvalidAmount",
+        6007: "MathOverflow",
+        6008: "RecipientNotAllowed",
+        6009: "RecipientListFull",
+        6010: "RecipientAlreadyExists",
+        6011: "RecipientNotFound",
+        6012: "InvalidDecisionHash",
+        6013: "InvalidMint",
+    }
+    repo_mirror = KipuIdlRegistry(REPO_ROOT / "frontend" / "src" / "idl" / "kipu_vault.json")
+    assert repo_mirror.is_loaded is True
+
+    for registry in (idl_registry, repo_mirror):
+        for code, name in expected.items():
+            entry = registry.lookup_error(code)
+            assert entry is not None
+            assert entry.name == name
+
+
+def test_relative_idl_path_resolves_from_repo_root(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(REPO_ROOT / "backend")
+    reg = KipuIdlRegistry("frontend/src/idl/kipu_vault.json")
+    assert reg.is_loaded is True
+    assert reg.idl_path == REPO_ROOT / "frontend" / "src" / "idl" / "kipu_vault.json"
+    frozen = reg.lookup_error(6002)
+    assert frozen is not None
+    assert frozen.name == "VaultFrozen"
+
+
+def test_settings_default_idl_path_points_to_target(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("KIPU_IDL_PATH", raising=False)
+    settings = Settings()
+    assert Path(settings.kipu_idl_path).as_posix().endswith("target/idl/kipu_vault.json")

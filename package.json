@@ -7,6 +7,7 @@
     "test": "node --no-experimental-strip-types ./node_modules/mocha/bin/mocha.js --require ts-node/register -t 1000000 tests/**/*.ts",
     "typecheck": "tsc --noEmit",
     "sync:idl": "ts-node scripts/sync_idl.ts",
+    "deploy:devnet": "bash scripts/deploy_devnet.sh",
     "setup:devnet": "ts-node scripts/setup_devnet_usdc.ts",
     "bootstrap:vault": "ts-node scripts/bootstrap_vault.ts"
   },

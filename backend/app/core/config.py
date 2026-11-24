@@ -7,12 +7,14 @@ from typing import Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
+
 
 class Settings(BaseSettings):
     """Typed runtime configuration for KipuVault FastAPI backend."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(str(REPO_ROOT / ".env"), ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -20,9 +22,7 @@ class Settings(BaseSettings):
     solana_rpc_url: str = Field(default="https://api.devnet.solana.com")
     kipu_program_id: str = Field(default="KipuVau1t1111111111111111111111111111111111")
     kipu_idl_path: str = Field(
-        default=str(
-            Path(__file__).resolve().parents[3] / "target" / "idl" / "kipu_vault.json"
-        )
+        default=str(REPO_ROOT / "target" / "idl" / "kipu_vault.json")
     )
     agent_keypair_b58: str = Field(default="")
 
