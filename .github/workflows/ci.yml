@@ -7,7 +7,7 @@ on:
 
 jobs:
   anchor-phase1:
-    name: Phase 1 — Anchor Build & 20 Bankrun Tests
+    name: Phase 1 — Anchor Build & 20 LiteSVM Tests
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
