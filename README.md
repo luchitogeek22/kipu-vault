@@ -46,11 +46,11 @@ KipuVau1t1111111111111111111111111111111111
 
 ## Instalación en 3 pasos (Codespaces o local)
 
-1. **Prepara el entorno y compila el programa Anchor** *(en GitHub Codespaces, `.devcontainer/setup.sh` instala Rust `1.81.0`, Solana `1.18.26`, Anchor `0.30.1`, Node y `backend/.venv` automáticamente)*:
+1. **Prepara el entorno y compila el programa Anchor** *(en GitHub Codespaces / Ubuntu 24.04, `.devcontainer/setup.sh` instala Rust `1.89.0`, Agave `4.1.2` + `cargo-build-sbf 4.1.0`, Anchor `1.2.1`, Node `22` LTS y `backend/.venv` automáticamente)*:
    ```bash
    anchor build && anchor keys sync && anchor build
    npm run sync:idl
-   anchor test --skip-local-validator
+   anchor test --skip-local-validator --skip-deploy --skip-build
    ```
 2. **Despliega en Devnet, aplica Supabase y configura variables de entorno**:
    ```bash
@@ -114,9 +114,9 @@ Squads es infraestructura multisig de propósito general y complementaria; **Kip
 
 ## Checklist de verificación (`SPEC.md` §1 y §9)
 
-- [x] **Programa Anchor (`programs/kipu_vault`)**: `VaultState`, 8 instrucciones, orden determinista 1–11 en `agent_execute`, 14 `KipuError` (`6000`–`6013`), scripts Devnet y 20 tests en `tests/kipu_vault.ts` (`tsc --noEmit` en verde).
-- [ ] **Compilación y tests on-chain en Codespaces**: `anchor build` y `anchor test --skip-local-validator` (con `target/idl/kipu_vault.json`).
-- [x] **Esquema Supabase (`supabase/schema.sql`) y Backend FastAPI (`backend/`)**: `pytest backend -q` (`28 passed`), `ruff check backend` limpio, `mypy backend/app` limpio.
-- [ ] **Postgres/Supabase live**: aplicar `supabase/schema.sql` sobre instancia vacía.
-- [x] **Frontend (`frontend/`)**: TopBar, PolicyPanel, KipuCopilot, AuditLedger con tema oscuro/Inca Gold, Wallet Adapter, SIWS y verificación de integridad (`npm run lint && npm run build`).
-- [ ] **Guion de demo E2E contra Devnet**: pasos 1–5 tras `anchor deploy --provider.cluster devnet`.
+- [x] **Programa Anchor y 20 tests LiteSVM (`programs/kipu_vault`, `tests/kipu_vault.ts`)**: `VaultState`, 8 instrucciones, orden determinista 1–11 en `agent_execute`, 14 `KipuError` (`6000`–`6013`); `anchor build`, `anchor keys sync`, `target/idl/kipu_vault.json` y `20 passing` verificados en CI (GitHub Actions run `45398611774`).
+- [x] **Esquema SQL sobre Postgres vacío y Backend FastAPI (`supabase/schema.sql`, `backend/`)**: `supabase/schema.sql` verificado sobre Postgres 16 vacío en CI; `pytest backend -q` (`28 passed`), `ruff check backend` limpio, `mypy backend/app` limpio.
+- [x] **Frontend (`frontend/`)**: TopBar, PolicyPanel, KipuCopilot, AuditLedger con tema oscuro/Inca Gold, Wallet Adapter, SIWS y verificación de integridad (`npm run lint && npm run build` en verde en CI).
+- [ ] **Despliegue en Solana Devnet y Program ID definitivo**: ejecutar `anchor deploy --provider.cluster devnet`, `npm run sync:idl`, `npm run setup:devnet`, `npm run bootstrap:vault` y actualizar el Program ID real en este README y `.env`.
+- [ ] **Instancia real de Supabase y `.env`**: aplicar `supabase/schema.sql` en el proyecto live de Supabase y configurar variables de entorno reales.
+- [ ] **Guion de demo E2E contra Devnet**: recorrer pasos 1–5 de `SPEC.md` §2 con Phantom, FastAPI, Next.js y Supabase live.
