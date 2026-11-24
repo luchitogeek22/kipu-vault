@@ -128,7 +128,7 @@ export async function fetchVaultStateOnChain(
   };
   const { program } = getVaultProgram(connection, dummyWallet);
   const decoded = program.coder.accounts.decode<RawAnchorVaultAccount>(
-    "VaultState",
+    "vaultState",
     info.data
   );
 
