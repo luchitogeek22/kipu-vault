@@ -394,6 +394,7 @@ export function KipuDashboard() {
           role: "assistant",
           text: res.explanation_es,
           result: res,
+          mode: payload.mode,
         },
       ]);
 
@@ -457,9 +458,9 @@ export function KipuDashboard() {
         lowSolWarning={Boolean(health?.low_sol_warning)}
       />
 
-      <main className="mx-auto max-w-[1440px] space-y-4 px-4 py-5 sm:px-6">
+      <main className="mx-auto max-w-[1440px] space-y-3 px-4 py-3.5 sm:px-6">
         {bannerError && (
-          <div className="flex items-center justify-between rounded-lg border border-kipu-crimson/60 bg-kipu-crimson/10 px-4 py-2.5 text-xs text-red-200">
+          <div className="flex items-center justify-between rounded-lg border border-kipu-crimson/60 bg-kipu-crimson/10 px-4 py-2 text-xs text-red-200">
             <span>{bannerError}</span>
             <button
               type="button"
@@ -472,7 +473,7 @@ export function KipuDashboard() {
         )}
 
         {bannerInfo && (
-          <div className="flex items-center justify-between rounded-lg border border-kipu-emerald/50 bg-kipu-emerald/10 px-4 py-2.5 text-xs text-emerald-200">
+          <div className="flex items-center justify-between rounded-lg border border-kipu-emerald/50 bg-kipu-emerald/10 px-4 py-2 text-xs text-emerald-200">
             <span>{bannerInfo}</span>
             <button
               type="button"
@@ -484,7 +485,7 @@ export function KipuDashboard() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
           <div className="lg:col-span-4">
             <PolicyPanel
               mintInput={mintInput}
@@ -503,10 +504,11 @@ export function KipuDashboard() {
             />
           </div>
 
-          <div className="flex flex-col gap-4 lg:col-span-8">
+          <div className="flex flex-col gap-3 lg:col-span-8">
             <KipuCopilot
               demoMode={Boolean(health?.demo_mode)}
               isAuthenticated={Boolean(jwtToken)}
+              isFrozen={Boolean(vault?.isFrozen)}
               vaultAddress={vault?.address ?? null}
               demoRecipientAddress={demoRecipientAddress}
               onChangeDemoRecipient={setDemoRecipientAddress}

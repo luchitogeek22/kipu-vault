@@ -47,7 +47,7 @@ export function TopBar({
 
   return (
     <header className="border-b border-kipu-border bg-kipu-card/90 backdrop-blur">
-      <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6">
+      <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-kipu-gold/40 bg-kipu-gold/10 text-kipu-gold">
             <svg
@@ -131,6 +131,7 @@ export function TopBar({
             type="button"
             disabled={!isOwner || freezing}
             onClick={() => void onToggleFreeze()}
+            title="Emergency Freeze: bloquea únicamente al agente; el owner siempre puede retirar fondos"
             className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
               vault?.isFrozen
                 ? "border-kipu-crimson bg-kipu-crimson text-white hover:bg-red-600"
@@ -140,12 +141,12 @@ export function TopBar({
             {vault?.isFrozen ? (
               <>
                 <Snowflake className="h-4 w-4" />
-                {freezing ? "Procesando..." : "Freeze ACTIVO (Descongelar)"}
+                {freezing ? "Procesando..." : "Congelado · Descongelar"}
               </>
             ) : (
               <>
                 <ShieldAlert className="h-4 w-4" />
-                {freezing ? "Procesando..." : "Emergency Freeze"}
+                {freezing ? "Procesando..." : "Activa · Congelar"}
               </>
             )}
           </button>

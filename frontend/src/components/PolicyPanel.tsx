@@ -92,7 +92,7 @@ export function PolicyPanel({
       : 0;
 
   return (
-    <aside className="flex flex-col gap-4 rounded-xl border border-kipu-border bg-kipu-card p-4">
+    <aside className="flex flex-col gap-2.5 rounded-xl border border-kipu-border bg-kipu-card p-3.5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Shield className="h-4 w-4 text-kipu-gold" />
@@ -114,7 +114,7 @@ export function PolicyPanel({
       </div>
 
       {/* Mint selector */}
-      <div className="rounded-lg border border-kipu-border bg-kipu-bg p-3">
+      <div className="rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
         <label className="mb-1 block text-[11px] font-medium text-zinc-400">
           Mint Mock USDC (SPL clásico)
         </label>
@@ -126,7 +126,7 @@ export function PolicyPanel({
           className="w-full rounded-md border border-kipu-border bg-kipu-card px-2.5 py-1.5 font-mono text-xs text-zinc-100 placeholder:text-zinc-600 focus:border-kipu-gold focus:outline-none"
         />
         {vault && (
-          <div className="mt-2 flex items-center justify-between text-[11px] text-zinc-400">
+          <div className="mt-1.5 flex items-center justify-between text-[11px] text-zinc-400">
             <span>PDA Bóveda:</span>
             <a
               href={explorerAddressUrl(vault.address)}
@@ -141,7 +141,7 @@ export function PolicyPanel({
       </div>
 
       {!vault ? (
-        <div className="rounded-lg border border-kipu-gold/30 bg-kipu-bg p-3">
+        <div className="rounded-lg border border-kipu-gold/30 bg-kipu-bg p-2.5">
           <p className="mb-2 text-xs font-medium text-kipu-gold">
             No existe bóveda para este owner + mint. Créala aquí:
           </p>
@@ -156,7 +156,7 @@ export function PolicyPanel({
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="mb-1 block text-[10px] text-zinc-400">
-                  Tope / tx (USDC)
+                  Tope / tx (Mock USDC)
                 </label>
                 <input
                   type="text"
@@ -167,7 +167,7 @@ export function PolicyPanel({
               </div>
               <div>
                 <label className="mb-1 block text-[10px] text-zinc-400">
-                  Límite diario (USDC)
+                  Límite diario (Mock USDC)
                 </label>
                 <input
                   type="text"
@@ -199,13 +199,13 @@ export function PolicyPanel({
       ) : (
         <>
           {/* Live policy bars */}
-          <div className="space-y-3 rounded-lg border border-kipu-border bg-kipu-bg p-3">
+          <div className="space-y-2 rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
             <div>
               <div className="mb-1 flex justify-between text-xs">
-                <span className="text-zinc-400">Gasto de hoy / Límite diario</span>
+                <span className="text-zinc-400">Ventana 24h (fija) / Límite diario</span>
                 <span className="font-mono text-zinc-100">
                   {formatBaseUnitsAsUsdc(vault.spentToday, 2)} /{" "}
-                  {formatBaseUnitsAsUsdc(vault.dailyLimit, 2)} USDC
+                  {formatBaseUnitsAsUsdc(vault.dailyLimit, 2)} Mock USDC
                 </span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
@@ -222,7 +222,7 @@ export function PolicyPanel({
               <div className="mb-1 flex justify-between text-xs">
                 <span className="text-zinc-400">Tope por transacción</span>
                 <span className="font-mono text-kipu-gold">
-                  {formatBaseUnitsAsUsdc(vault.maxPerTx, 2)} USDC
+                  {formatBaseUnitsAsUsdc(vault.maxPerTx, 2)} Mock USDC
                 </span>
               </div>
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
@@ -233,7 +233,7 @@ export function PolicyPanel({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 pt-1 text-[11px]">
+            <div className="grid grid-cols-2 gap-2 pt-0.5 text-[11px]">
               <div className="rounded border border-kipu-border bg-kipu-card px-2 py-1">
                 <span className="block text-zinc-500">Estado</span>
                 <span
@@ -241,7 +241,7 @@ export function PolicyPanel({
                     vault.isFrozen ? "text-kipu-crimson" : "text-kipu-emerald"
                   }`}
                 >
-                  {vault.isFrozen ? "FROZEN" : "ACTIVA"}
+                  {vault.isFrozen ? "CONGELADA (FROZEN)" : "ACTIVA"}
                 </span>
               </div>
               <div className="rounded border border-kipu-border bg-kipu-card px-2 py-1">
@@ -262,15 +262,15 @@ export function PolicyPanel({
 
           {/* Deposit / Withdraw */}
           <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
+            <div className="rounded-lg border border-kipu-border bg-kipu-bg p-2">
               <label className="mb-1 block text-[11px] text-zinc-400">
-                Depositar (USDC)
+                Depositar (Mock USDC)
               </label>
               <input
                 type="text"
                 value={depositAmount}
                 onChange={(e) => setDepositAmount(e.target.value)}
-                className="mb-2 w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100"
+                className="mb-1.5 w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100"
               />
               <button
                 type="button"
@@ -283,15 +283,15 @@ export function PolicyPanel({
               </button>
             </div>
 
-            <div className="rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
+            <div className="rounded-lg border border-kipu-border bg-kipu-bg p-2">
               <label className="mb-1 block text-[11px] text-zinc-400">
-                Retirar (siempre OK)
+                Retirar (Mock USDC)
               </label>
               <input
                 type="text"
                 value={withdrawAmount}
                 onChange={(e) => setWithdrawAmount(e.target.value)}
-                className="mb-2 w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100"
+                className="mb-1.5 w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100"
               />
               <button
                 type="button"
@@ -306,7 +306,7 @@ export function PolicyPanel({
           </div>
 
           {/* Allowlist */}
-          <div className="rounded-lg border border-kipu-border bg-kipu-bg p-3">
+          <div className="rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
             <div className="mb-2 flex items-center justify-between">
               <span className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-200">
                 <Users className="h-3.5 w-3.5 text-kipu-gold" />
@@ -380,12 +380,12 @@ export function PolicyPanel({
           </div>
 
           {/* Update policy */}
-          <details className="rounded-lg border border-kipu-border bg-kipu-bg p-3">
+          <details className="rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
             <summary className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-zinc-300">
               <Settings2 className="h-3.5 w-3.5 text-kipu-gold" />
               Actualizar políticas
             </summary>
-            <div className="mt-2.5 space-y-2">
+            <div className="mt-2 space-y-2">
               <input
                 type="text"
                 value={policyAgent}
@@ -398,14 +398,14 @@ export function PolicyPanel({
                   type="text"
                   value={policyMaxPerTx}
                   onChange={(e) => setPolicyMaxPerTx(e.target.value)}
-                  placeholder="Nuevo max/tx"
+                  placeholder="Max/tx (Mock USDC)"
                   className="w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100 placeholder:text-zinc-600"
                 />
                 <input
                   type="text"
                   value={policyDailyLimit}
                   onChange={(e) => setPolicyDailyLimit(e.target.value)}
-                  placeholder="Nuevo límite diario"
+                  placeholder="Diario (Mock USDC)"
                   className="w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100 placeholder:text-zinc-600"
                 />
               </div>

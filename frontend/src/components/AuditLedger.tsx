@@ -62,8 +62,8 @@ export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
   };
 
   return (
-    <section className="rounded-xl border border-kipu-border bg-kipu-card p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-kipu-border pb-3">
+    <section className="rounded-xl border border-kipu-border bg-kipu-card p-3.5">
+      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-kipu-border pb-2.5">
         <div className="flex items-center gap-2">
           <FileSearch className="h-4 w-4 text-kipu-gold" />
           <h2 className="text-sm font-semibold text-zinc-100">
@@ -81,7 +81,7 @@ export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
       </div>
 
       {verifyError && (
-        <div className="mb-3 rounded-lg border border-kipu-crimson/50 bg-kipu-crimson/10 px-3 py-2 text-xs text-red-200">
+        <div className="mb-2.5 rounded-lg border border-kipu-crimson/50 bg-kipu-crimson/10 px-3 py-2 text-xs text-red-200">
           {verifyError}
         </div>
       )}
@@ -92,8 +92,8 @@ export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
             <tr className="border-b border-kipu-border text-[11px] uppercase tracking-wider text-zinc-500">
               <th className="py-2 pr-3">Estado</th>
               <th className="py-2 pr-3">Monto</th>
-              <th className="py-2 pr-3">Hash decisión</th>
-              <th className="py-2 pr-3">Explorer Devnet</th>
+              <th className="py-2 pr-3">Audit hash (SHA-256)</th>
+              <th className="py-2 pr-3">Tx Signature / Audit ID</th>
               <th className="py-2 text-right">Integridad</th>
             </tr>
           </thead>
@@ -102,7 +102,7 @@ export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
               <tr>
                 <td
                   colSpan={5}
-                  className="py-8 text-center text-xs text-zinc-500"
+                  className="py-6 text-center text-xs text-zinc-500"
                 >
                   Aún no hay registros de auditoría para esta bóveda.
                 </td>
@@ -113,7 +113,7 @@ export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
                 const isPreflight = entry.status === "BLOCKED_PREFLIGHT";
                 return (
                   <tr key={entry.id} className="hover:bg-zinc-900/50">
-                    <td className="py-2.5 pr-3">
+                    <td className="py-2 pr-3">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span
                           className={`inline-block rounded border px-1.5 py-0.5 font-mono text-[11px] font-medium ${statusBadgeClasses(
@@ -135,17 +135,17 @@ export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
                       </div>
                     </td>
 
-                    <td className="py-2.5 pr-3 font-mono text-zinc-100">
+                    <td className="py-2 pr-3 font-mono text-zinc-100">
                       {entry.amount_base_units
-                        ? `${formatBaseUnitsAsUsdc(entry.amount_base_units, 2)} USDC`
+                        ? `${formatBaseUnitsAsUsdc(entry.amount_base_units, 2)} Mock USDC`
                         : "—"}
                     </td>
 
-                    <td className="py-2.5 pr-3 font-mono text-zinc-300">
+                    <td className="py-2 pr-3 font-mono text-zinc-300">
                       {truncateMiddle(entry.decision_hash, 8, 6)}
                     </td>
 
-                    <td className="py-2.5 pr-3 font-mono">
+                    <td className="py-2 pr-3 font-mono">
                       {entry.tx_signature ? (
                         <a
                           href={explorerTxUrl(entry.tx_signature)}
@@ -153,17 +153,21 @@ export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
                           rel="noreferrer"
                           className="inline-flex items-center gap-1 text-kipu-gold hover:underline"
                         >
-                          {truncateMiddle(entry.tx_signature, 6, 4)}
+                          tx: {truncateMiddle(entry.tx_signature, 6, 4)}
                           <ExternalLink className="h-3 w-3" />
                         </a>
                       ) : (
-                        <span className="text-[11px] text-zinc-500">
-                          No verificable on-chain
+                        <span
+                          className="text-[11px] text-zinc-400"
+                          title="No existe transacción enviada a Solana"
+                        >
+                          audit id: {truncateMiddle(entry.id, 6, 4)} (sin tx
+                          on-chain)
                         </span>
                       )}
                     </td>
 
-                    <td className="py-2.5 text-right">
+                    <td className="py-2 text-right">
                       <button
                         type="button"
                         disabled={!hasSignature || verifyingSig === entry.tx_signature}
