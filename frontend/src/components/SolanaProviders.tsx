@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import {
   ConnectionProvider,
   WalletProvider,
@@ -17,9 +17,27 @@ export function SolanaProviders({ children }: { children: React.ReactNode }) {
     []
   );
 
+  // Silenciar console.error para rechazos del usuario (lo maneja KipuDashboard inline)
+  // y evitar que Next.js dev overlay bloquee la pantalla en presentaciones.
+  const handleWalletError = useCallback((error: Error) => {
+    const msg = error?.message ?? "";
+    if (
+      msg.toLowerCase().includes("rejected") ||
+      msg.toLowerCase().includes("cancel")
+    ) {
+      console.warn("[KipuVault Wallet]", error.name, msg);
+      return;
+    }
+    console.warn("[KipuVault Wallet Error]", error.name, msg);
+  }, []);
+
   return (
     <ConnectionProvider endpoint={FRONTEND_CONFIG.solanaRpcUrl}>
-      <WalletProvider wallets={wallets} autoConnect>
+      <WalletProvider
+        wallets={wallets}
+        onError={handleWalletError}
+        autoConnect
+      >
         <WalletModalProvider>{children}</WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>

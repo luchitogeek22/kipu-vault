@@ -218,8 +218,12 @@ export function KipuDashboard() {
       setJwtToken(session.access_token);
       setBannerInfo("Sesión SIWS verificada correctamente.");
     } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Error en autenticación SIWS";
       setBannerError(
-        err instanceof Error ? err.message : "Error en autenticación SIWS"
+        msg.toLowerCase().includes("rejected")
+          ? "Firma cancelada en Phantom. Haz clic en «Iniciar sesión» cuando estés listo."
+          : msg
       );
     } finally {
       setSigningIn(false);
@@ -239,8 +243,12 @@ export function KipuDashboard() {
       setBannerInfo(`${successLabel} (tx: ${sig.slice(0, 10)}...)`);
       await refreshVault();
     } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Transacción rechazada";
       setBannerError(
-        err instanceof Error ? err.message : "Transacción rechazada"
+        msg.toLowerCase().includes("rejected")
+          ? "Transacción cancelada en Phantom."
+          : msg
       );
     } finally {
       setBusyAction(null);
