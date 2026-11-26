@@ -23,7 +23,11 @@ create table audit_logs (
 
 create index audit_logs_vault_created_idx on audit_logs (vault_address, created_at desc);
 
-create function audit_logs_guard() returns trigger language plpgsql as $$
+create function public.audit_logs_guard()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
 begin
   if tg_op = 'DELETE' then
     raise exception 'audit_logs es append-only';

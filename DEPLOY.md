@@ -141,3 +141,29 @@ docker build -f frontend/Dockerfile \
   --build-arg NEXT_PUBLIC_PROGRAM_ID=<TU_PROGRAM_ID_DE_DEVNET> \
   -t kipu-vault-frontend frontend
 ```
+
+---
+
+## 8. Despliegue público en línea sin tarjeta de crédito (Vercel + Render + Supabase)
+
+Esta arquitectura deja KipuVault accesible públicamente por HTTPS sin requerir tarjeta de crédito ni depender de GitHub Codespaces:
+
+1. **Backend en Render (`render.yaml` incluido en la raíz):**
+   - Entra a [Render](https://render.com) con GitHub → **`New +` → `Blueprint`** → selecciona este repositorio (`render.yaml` ya define el servicio Docker gratis `kipu-vault-api` con `/api/health`).
+   - Completa los secretos solicitados:
+     - `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`
+     - `AGENT_KEYPAIR_B58` (la clave Base58 de tu agente en Devnet)
+     - `LLM_PROVIDER` / `LLM_MODEL` y la API key correspondiente (`ANTHROPIC_API_KEY`, `GOOGLE_API_KEY` o `META_API_KEY`)
+     - `SOLANA_RPC_URL` (recomendado: endpoint Devnet gratuito de Helius/QuickNode para evitar rate limits `429` del RPC público)
+     - `FRONTEND_ORIGIN` (pon primero `https://kipu-vault.vercel.app` o actualízalo apenas Vercel te dé tu URL exacta) y opcionalmente `FRONTEND_ORIGINS` con URLs extra separadas por coma.
+   - `KIPU_ENV=production` exige `JWT_SECRET` fuerte (Render lo autogenera con `generateValue: true`) y `SUPABASE_*` presentes al arrancar.
+
+2. **Frontend en Vercel (plan Hobby):**
+   - Importa el repositorio en Vercel (o ejecuta `vercel` desde `frontend/`), seleccionando **`Root Directory: frontend`**.
+   - Define las 3 variables públicas:
+     - `NEXT_PUBLIC_API_URL=https://<tu-servicio>.onrender.com`
+     - `NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com` (o tu RPC Devnet dedicado)
+     - `NEXT_PUBLIC_PROGRAM_ID=EVPQDCiHnR47n7PKGw1nUD4dRm3ALN4AZrxgxj2kUfSx`
+   - Copia la URL final `https://*.vercel.app` que te entregue Vercel en `FRONTEND_ORIGIN` (y `FRONTEND_ORIGINS` si usas alias adicionales) dentro de Render.
+
+> **Nota de plan gratuito en Render:** los Web Services gratuitos se suspenden tras ~15 minutos sin tráfico y tardan ~30–50 s en despertar en el primer request (`/api/health`). Antes de una presentación en vivo, abre `/api/health` unos segundos antes para tener la instancia caliente.

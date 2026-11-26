@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
@@ -19,17 +22,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """Create and configure the FastAPI application."""
     cfg = settings or get_settings()
 
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        cfg.validate_production_readiness()
+        yield
+
     app = FastAPI(
         title="KipuVault API",
         version="0.1.0",
         description="Backend SIWS + AI Copilot + On-Chain Guardrail Audit API for KipuVault",
+        lifespan=lifespan,
     )
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[cfg.frontend_origin],
+        allow_origins=cfg.get_cors_origins(),
         allow_credentials=True,
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type"],

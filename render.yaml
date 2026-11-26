@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: kipu-vault-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: KIPU_ENV
+        value: production
+      - key: KIPU_PROGRAM_ID
+        value: EVPQDCiHnR47n7PKGw1nUD4dRm3ALN4AZrxgxj2kUfSx
+      - key: KIPU_IDL_PATH
+        value: /app/target/idl/kipu_vault.json
+      - key: KIPU_DEMO_MODE
+        value: "true"
+      - key: RISK_BLOCK_THRESHOLD
+        value: "70"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SOLANA_RPC_URL
+        value: https://api.devnet.solana.com
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: FRONTEND_ORIGINS
+        sync: false
+      - key: AGENT_KEYPAIR_B58
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: LLM_PROVIDER
+        value: anthropic
+      - key: LLM_MODEL
+        value: claude-sonnet-4-20250514
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: META_API_KEY
+        sync: false
+      - key: META_API_BASE_URL
+        value: https://api.meta.ai/v1
