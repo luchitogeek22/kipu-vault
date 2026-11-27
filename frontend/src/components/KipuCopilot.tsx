@@ -696,7 +696,7 @@ export function KipuCopilot({
             {
               step: "02",
               label: "Políticas",
-              sub: `≤ ${sandboxLimitDisplay.replace(" Mock USDC", "")} · Allowlist`,
+              sub: `≤ ${sandboxLimitDisplay.replace(" Mock USDC", "")} · Allowlist ${sandboxAllowedCount}/8`,
               icon: SlidersHorizontal,
               state:
                 flowStatusKind === "idle"
