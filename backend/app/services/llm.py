@@ -248,7 +248,7 @@ class GoogleLLMClient(LLMClient):
 
 
 class MetaLLMClient(LLMClient):
-    """Meta Model API client using OpenAI-compatible strict JSON schema at temperature=0."""
+    """Meta Model API client preferring /v1/responses with /chat/completions fallback."""
 
     def __init__(
         self,
@@ -275,11 +275,68 @@ class MetaLLMClient(LLMClient):
             cleaned = "\n".join(lines).strip()
         return cleaned
 
+    @staticmethod
+    def _extract_responses_text(data: dict[str, Any]) -> str:
+        direct = data.get("output_text")
+        if isinstance(direct, str) and direct.strip():
+            return direct
+        parts: list[str] = []
+        output = data.get("output", [])
+        if isinstance(output, list):
+            for item in output:
+                if not isinstance(item, dict):
+                    continue
+                content = item.get("content", [])
+                if not isinstance(content, list):
+                    continue
+                for block in content:
+                    if not isinstance(block, dict):
+                        continue
+                    if block.get("type") in ("output_text", "text"):
+                        text = block.get("text")
+                        if isinstance(text, str) and text.strip():
+                            parts.append(text)
+        joined = "\n".join(parts).strip()
+        if not joined:
+            raise LLMParseError("Meta Model API /responses returned empty output")
+        return joined
+
+    @staticmethod
+    def _extract_chat_text(data: dict[str, Any]) -> str:
+        choices = data.get("choices", [])
+        if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+            raise LLMParseError("Meta Model API returned no choices")
+        message = choices[0].get("message", {})
+        if not isinstance(message, dict):
+            raise LLMParseError("Meta Model API returned invalid message object")
+        raw_text = message.get("content", "")
+        if not isinstance(raw_text, str) or not raw_text.strip():
+            raise LLMParseError("Meta Model API returned empty message content")
+        return raw_text
+
+    async def _post_json(
+        self, client: httpx.AsyncClient, url: str, headers: dict[str, str], payload: dict[str, Any]
+    ) -> httpx.Response:
+        return await client.post(url, headers=headers, json=payload, timeout=25.0)
+
     async def _call_once(self, prompt: str) -> ParsedIntent:
         if not self.api_key:
             raise LLMParseError("META_API_KEY is not configured")
 
-        payload = {
+        responses_payload = {
+            "model": self.model,
+            "instructions": SYSTEM_PROMPT,
+            "input": f"UNTRUSTED_USER_PROMPT:\n{prompt}",
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "name": "emit_payment_intent",
+                    "strict": True,
+                    "schema": _META_INTENT_JSON_SCHEMA,
+                }
+            },
+        }
+        chat_payload = {
             "model": self.model,
             "temperature": 0,
             "messages": [
@@ -299,32 +356,38 @@ class MetaLLMClient(LLMClient):
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
-        url = f"{self.base_url}/chat/completions"
 
-        async def _post(client: httpx.AsyncClient) -> dict[str, Any]:
-            resp = await client.post(url, headers=headers, json=payload, timeout=20.0)
-            resp.raise_for_status()
+        async def _execute(client: httpx.AsyncClient) -> tuple[bool, dict[str, Any]]:
+            resp = await self._post_json(
+                client, f"{self.base_url}/responses", headers, responses_payload
+            )
+            used_responses = True
+            if resp.status_code in (404, 405):
+                used_responses = False
+                resp = await self._post_json(
+                    client, f"{self.base_url}/chat/completions", headers, chat_payload
+                )
+            if resp.is_error:
+                raise LLMParseError(
+                    f"Meta API HTTP {resp.status_code} ({resp.request.url.path}): "
+                    f"{resp.text[:300]}"
+                )
             data = resp.json()
             if not isinstance(data, dict):
                 raise LLMParseError("Unexpected non-dict Meta Model API response")
-            return data
+            return used_responses, data
 
         if self._http_client is not None:
-            data = await _post(self._http_client)
+            used_responses, data = await _execute(self._http_client)
         else:
             async with httpx.AsyncClient() as client:
-                data = await _post(client)
+                used_responses, data = await _execute(client)
 
-        choices = data.get("choices", [])
-        if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
-            raise LLMParseError("Meta Model API returned no choices")
-        message = choices[0].get("message", {})
-        if not isinstance(message, dict):
-            raise LLMParseError("Meta Model API returned invalid message object")
-        raw_text = message.get("content", "")
-        if not isinstance(raw_text, str) or not raw_text.strip():
-            raise LLMParseError("Meta Model API returned empty message content")
-
+        raw_text = (
+            self._extract_responses_text(data)
+            if used_responses
+            else self._extract_chat_text(data)
+        )
         parsed_raw = json.loads(self._strip_markdown_fences(raw_text))
         return ParsedIntent.model_validate(parsed_raw)
 

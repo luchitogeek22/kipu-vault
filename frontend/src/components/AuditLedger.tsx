@@ -183,7 +183,7 @@ export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
                         className="inline-flex items-center gap-1 rounded-md border border-kipu-border bg-kipu-bg px-2.5 py-1 text-xs font-medium text-zinc-200 hover:border-kipu-emerald/60 hover:text-kipu-emerald disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-zinc-900/60 disabled:text-zinc-500"
                       >
                         <ShieldCheck className="h-3.5 w-3.5" />
-                        {verifyingSig === entry.tx_signature
+                        {hasSignature && verifyingSig === entry.tx_signature
                           ? "Verificando..."
                           : "Verificar integridad"}
                       </button>
