@@ -161,6 +161,27 @@ class AnthropicLLMClient(LLMClient):
 class GoogleLLMClient(LLMClient):
     """Google Gemini API client using JSON schema structured output at temperature=0."""
 
+    _PREFERRED_MODELS = (
+        "gemini-3.5-flash-lite",
+        "gemini-3.5-flash",
+        "gemini-3.1-flash-lite",
+        "gemini-3-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+    )
+    _EXCLUDED_TAGS = (
+        "embedding",
+        "imagen",
+        "veo",
+        "tts",
+        "audio",
+        "live",
+        "aqa",
+        "robotics",
+        "computer-use",
+    )
+
     def __init__(
         self,
         *,
@@ -171,6 +192,61 @@ class GoogleLLMClient(LLMClient):
         self.api_key = api_key.strip()
         self.model = model.strip()
         self._http_client = http_client
+
+    async def _discover_fallback_model(
+        self, client: httpx.AsyncClient, headers: dict[str, str]
+    ) -> tuple[str | None, str]:
+        try:
+            resp = await client.get(
+                "https://generativelanguage.googleapis.com/v1beta/models",
+                headers=headers,
+                timeout=10.0,
+            )
+            debug = f"status={resp.status_code} body={resp.text[:160]}"
+            if resp.is_error:
+                return None, debug
+            payload = resp.json()
+            raw_models = payload.get("models", []) if isinstance(payload, dict) else []
+            candidates: list[str] = []
+            if isinstance(raw_models, list):
+                for item in raw_models:
+                    if not isinstance(item, dict):
+                        continue
+                    methods = item.get("supportedGenerationMethods", [])
+                    if not isinstance(methods, list) or "generateContent" not in methods:
+                        continue
+                    raw_name = item.get("name", "")
+                    if not isinstance(raw_name, str) or not raw_name:
+                        continue
+                    model_id = raw_name.removeprefix("models/")
+                    lower_id = model_id.lower()
+                    if any(tag in lower_id for tag in self._EXCLUDED_TAGS):
+                        continue
+                    candidates.append(model_id)
+
+            for preferred in self._PREFERRED_MODELS:
+                if preferred in candidates and preferred != self.model:
+                    return preferred, debug
+            for cand in candidates:
+                low = cand.lower()
+                if (
+                    cand != self.model
+                    and "gemini" in low
+                    and "flash" in low
+                    and "exp" not in low
+                    and "thinking" not in low
+                ):
+                    return cand, debug
+            for cand in candidates:
+                low = cand.lower()
+                if cand != self.model and "gemini" in low and "flash" in low:
+                    return cand, debug
+            for cand in candidates:
+                if cand != self.model and "gemini" in cand.lower():
+                    return cand, debug
+            return None, debug
+        except Exception as exc:
+            return None, f"exc={exc}"
 
     async def _call_once(self, prompt: str) -> ParsedIntent:
         if not self.api_key:
@@ -200,14 +276,40 @@ class GoogleLLMClient(LLMClient):
                 "responseSchema": gemini_schema,
             },
         }
-        url = (
-            f"https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{self.model}:generateContent?key={self.api_key}"
-        )
+        headers = {
+            "x-goog-api-key": self.api_key,
+            "Content-Type": "application/json",
+        }
+        base_v1beta = "https://generativelanguage.googleapis.com/v1beta/models"
 
         async def _post(client: httpx.AsyncClient) -> dict[str, Any]:
-            resp = await client.post(url, json=payload, timeout=20.0)
-            resp.raise_for_status()
+            resp = await client.post(
+                f"{base_v1beta}/{self.model}:generateContent",
+                headers=headers,
+                json=payload,
+                timeout=20.0,
+            )
+            models_debug: str | None = None
+            if resp.status_code == 404:
+                fallback_model, models_debug = await self._discover_fallback_model(
+                    client, headers
+                )
+                if fallback_model:
+                    resp = await client.post(
+                        f"{base_v1beta}/{fallback_model}:generateContent",
+                        headers=headers,
+                        json=payload,
+                        timeout=20.0,
+                    )
+            if resp.is_error:
+                parts = [
+                    f"model={self.model!r}",
+                    f"status={resp.status_code}",
+                    f"body={resp.text[:250]}",
+                ]
+                if models_debug is not None:
+                    parts.append(f"models_probe=({models_debug})")
+                raise LLMParseError("Gemini API error: " + " | ".join(parts))
             data = resp.json()
             if not isinstance(data, dict):
                 raise LLMParseError("Unexpected non-dict Gemini response")

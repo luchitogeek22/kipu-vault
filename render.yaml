@@ -33,9 +33,9 @@ services:
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: LLM_PROVIDER
-        value: meta
+        value: google
       - key: LLM_MODEL
-        value: muse-ember-1.0
+        value: gemini-2.5-flash-lite
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: GOOGLE_API_KEY
