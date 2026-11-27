@@ -81,8 +81,8 @@ class AnthropicLLMClient(LLMClient):
         model: str,
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
-        self.api_key = api_key
-        self.model = model
+        self.api_key = api_key.strip()
+        self.model = model.strip()
         self._http_client = http_client
 
     async def _call_once(self, prompt: str) -> ParsedIntent:
@@ -168,8 +168,8 @@ class GoogleLLMClient(LLMClient):
         model: str,
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
-        self.api_key = api_key
-        self.model = model
+        self.api_key = api_key.strip()
+        self.model = model.strip()
         self._http_client = http_client
 
     async def _call_once(self, prompt: str) -> ParsedIntent:
@@ -258,9 +258,9 @@ class MetaLLMClient(LLMClient):
         base_url: str = "https://api.meta.ai/v1",
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
-        self.api_key = api_key
-        self.model = model
-        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key.strip()
+        self.model = model.strip()
+        self.base_url = base_url.strip().rstrip("/")
         self._http_client = http_client
 
     @staticmethod
@@ -321,37 +321,49 @@ class MetaLLMClient(LLMClient):
 
     async def _discover_fallback_model(
         self, client: httpx.AsyncClient, headers: dict[str, str]
-    ) -> tuple[str | None, list[str]]:
+    ) -> tuple[str | None, list[str], str]:
         try:
             resp = await client.get(f"{self.base_url}/models", headers=headers, timeout=10.0)
+            debug = f"status={resp.status_code} body={resp.text[:160]}"
             if resp.is_error:
-                return None, []
+                return None, [], debug
             payload = resp.json()
-            raw_items = payload.get("data", []) if isinstance(payload, dict) else []
-            available = [
-                str(item["id"])
-                for item in raw_items
-                if isinstance(item, dict) and isinstance(item.get("id"), str)
-            ]
+            if isinstance(payload, list):
+                raw_items = payload
+            elif isinstance(payload, dict):
+                raw_items = payload.get("data") or payload.get("models") or []
+            else:
+                raw_items = []
+
+            available: list[str] = []
+            if isinstance(raw_items, list):
+                for item in raw_items:
+                    if isinstance(item, str) and item:
+                        available.append(item)
+                    elif isinstance(item, dict):
+                        val = item.get("id") or item.get("name")
+                        if isinstance(val, str) and val:
+                            available.append(val)
+
             for preferred in (
                 "muse-ember-1.0",
                 "muse-spark-1.2",
-                "muse-spark-1.1",
                 "muse-spark-1.3",
+                "muse-spark-1.1",
             ):
                 if preferred in available and preferred != self.model:
-                    return preferred, available
+                    return preferred, available, debug
             for candidate in available:
                 if candidate != self.model and any(
                     tag in candidate.lower() for tag in ("muse", "llama")
                 ):
-                    return candidate, available
+                    return candidate, available, debug
             for candidate in available:
                 if candidate != self.model:
-                    return candidate, available
-            return None, available
-        except Exception:
-            return None, []
+                    return candidate, available, debug
+            return None, available, debug
+        except Exception as exc:
+            return None, [], f"exc={exc}"
 
     async def _call_once(self, prompt: str) -> ParsedIntent:
         if not self.api_key:
@@ -403,7 +415,11 @@ class MetaLLMClient(LLMClient):
                 _build_responses_payload(self.model),
             )
             used_responses = True
-            available_models: list[str] | None = None
+            first_resp_err: str | None = None
+            if resp.is_error:
+                first_resp_err = f"status={resp.status_code} body={resp.text[:160]}"
+
+            models_debug: str | None = None
             if resp.status_code in (404, 405):
                 used_responses = False
                 resp = await self._post_json(
@@ -413,35 +429,46 @@ class MetaLLMClient(LLMClient):
                     _build_chat_payload(self.model),
                 )
             if resp.status_code == 404:
-                fallback_model, available_models = await self._discover_fallback_model(
-                    client, headers
+                fallback_model, _available, models_debug = (
+                    await self._discover_fallback_model(client, headers)
                 )
-                if fallback_model:
+                candidates = (
+                    [fallback_model]
+                    if fallback_model
+                    else [
+                        m
+                        for m in (
+                            "muse-ember-1.0",
+                            "muse-spark-1.2",
+                            "muse-spark-1.3",
+                            "muse-spark-1.1",
+                        )
+                        if m != self.model
+                    ]
+                )
+                for candidate in candidates:
                     used_responses = True
                     resp = await self._post_json(
                         client,
                         f"{self.base_url}/responses",
                         headers,
-                        _build_responses_payload(fallback_model),
+                        _build_responses_payload(candidate),
                     )
-                    if resp.status_code in (404, 405):
-                        used_responses = False
-                        resp = await self._post_json(
-                            client,
-                            f"{self.base_url}/chat/completions",
-                            headers,
-                            _build_chat_payload(fallback_model),
-                        )
+                    if resp.status_code == 404:
+                        continue
+                    break
             if resp.is_error:
-                extra = (
-                    f" | /v1/models={available_models}"
-                    if available_models is not None
-                    else ""
-                )
-                raise LLMParseError(
-                    f"Meta API HTTP {resp.status_code} ({resp.request.url.path}): "
-                    f"{resp.text[:250]}{extra}"
-                )
+                parts = [
+                    f"model={self.model!r}",
+                    f"final_status={resp.status_code}",
+                    f"final_path={resp.request.url.path}",
+                    f"final_body={resp.text[:200]}",
+                ]
+                if first_resp_err is not None:
+                    parts.append(f"first_responses=({first_resp_err})")
+                if models_debug is not None:
+                    parts.append(f"models_probe=({models_debug})")
+                raise LLMParseError("Meta API error: " + " | ".join(parts))
             data = resp.json()
             if not isinstance(data, dict):
                 raise LLMParseError("Unexpected non-dict Meta Model API response")

@@ -26,6 +26,8 @@ class HealthResponse(BaseModel):
     low_sol_warning: bool
     demo_mode: bool
     idl_loaded: bool
+    llm_provider: str
+    llm_model: str
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -51,4 +53,6 @@ async def health_check(
         low_sol_warning=low_warning,
         demo_mode=settings.kipu_demo_mode,
         idl_loaded=idl_registry.is_loaded,
+        llm_provider=settings.llm_provider,
+        llm_model=settings.llm_model.strip(),
     )
