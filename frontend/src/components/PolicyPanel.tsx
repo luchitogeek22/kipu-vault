@@ -8,8 +8,10 @@ import {
   RefreshCw,
   Settings2,
   Shield,
+  SlidersHorizontal,
   Trash2,
   Users,
+  Wallet,
 } from "lucide-react";
 import {
   explorerAddressUrl,
@@ -84,6 +86,9 @@ export function PolicyPanel({
   const [policyDailyLimit, setPolicyDailyLimit] = useState("");
 
   const [newRecipient, setNewRecipient] = useState("");
+  const [activeTab, setActiveTab] = useState<"rules" | "funds" | "allowlist">(
+    "rules"
+  );
 
   const isOwner = Boolean(
     connectedWallet && vault && connectedWallet === vault.owner
@@ -167,12 +172,12 @@ export function PolicyPanel({
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Shield className="h-4 w-4 text-kipu-gold" />
+          <Shield className="h-4 w-4 text-zinc-300" />
           <h2 className="text-sm font-semibold text-zinc-100">
-            Políticas On-Chain
+            Configuración de bóveda
           </h2>
           {experienceLevel !== "advanced" && (
-            <InfoTooltip text="Reglas guardadas en el contrato de Solana. Ni la IA ni el servidor pueden saltárselas." />
+            <InfoTooltip text="Configuración guardada en el contrato de Solana. Ni la IA ni el servidor pueden saltársela." />
           )}
         </div>
         <button
@@ -292,247 +297,304 @@ export function PolicyPanel({
         </div>
       ) : (
         <>
-          <div className="space-y-2 rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
-            <div>
-              <div className="mb-1 flex justify-between text-xs">
-                <span className="inline-flex items-center gap-1 text-zinc-300">
-                  Ventana 24h (fija) / Límite diario
-                  {experienceLevel === "beginner" && (
-                    <InfoTooltip text="Gasto acumulado en las últimas 24h frente al máximo diario permitido." />
-                  )}
-                </span>
-                <span className="font-mono text-zinc-100">
-                  {formatBaseUnitsAsUsdc(vault.spentToday, 2)} /{" "}
-                  {formatBaseUnitsAsUsdc(vault.dailyLimit, 2)} Mock USDC
-                </span>
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
-                <div
-                  className={`h-full transition-all ${
-                    dailyPct >= 90 ? "bg-kipu-crimson" : "bg-kipu-gold"
-                  }`}
-                  style={{ width: `${dailyPct}%` }}
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="mb-1 flex justify-between text-xs">
-                <span className="inline-flex items-center gap-1 text-zinc-300">
-                  Tope por transacción
-                  {experienceLevel === "beginner" && (
-                    <InfoTooltip text="Monto máximo que el agente puede transferir en una sola operación." />
-                  )}
-                </span>
-                <span className="font-mono text-kipu-gold">
-                  {formatBaseUnitsAsUsdc(vault.maxPerTx, 2)} Mock USDC
-                </span>
-              </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
-                <div
-                  className="h-full bg-kipu-gold/70"
-                  style={{ width: `${perTxPct}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 pt-0.5 text-xs">
-              <div className="rounded border border-kipu-border bg-kipu-card px-2 py-1">
-                <span className="block text-zinc-400">Estado</span>
-                <span
-                  className={`font-semibold ${
-                    vault.isFrozen ? "text-kipu-crimson" : "text-kipu-emerald"
-                  }`}
-                >
-                  {vault.isFrozen ? "Congelada (FROZEN)" : "Activa"}
-                </span>
-              </div>
-              <div className="rounded border border-kipu-border bg-kipu-card px-2 py-1">
-                <span className="block text-zinc-400">Ejecuciones</span>
-                <span className="font-mono font-semibold text-zinc-100">
-                  {vault.totalExecutions.toString()}
-                </span>
-              </div>
-            </div>
-
-            <div className="text-xs text-zinc-300">
-              Agente:{" "}
-              <span className="font-mono text-zinc-100">
-                {truncateMiddle(vault.agent, 6, 6)}
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-lg border border-kipu-border bg-kipu-bg p-2">
-              <label className="mb-1 block text-xs text-zinc-300">
-                Depositar (Mock USDC)
-              </label>
-              <input
-                type="text"
-                value={depositAmount}
-                onChange={(e) => setDepositAmount(e.target.value)}
-                className="mb-1.5 w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100"
-              />
-              <button
-                type="button"
-                disabled={!canDeposit}
-                onClick={() => void onDeposit(depositAmount)}
-                className="inline-flex w-full items-center justify-center gap-1 rounded-md border border-kipu-emerald/50 bg-kipu-emerald/15 px-2 py-1.5 text-xs font-medium text-kipu-emerald hover:bg-kipu-emerald/25 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/70 disabled:text-zinc-500"
-              >
-                <ArrowDownToLine className="h-3.5 w-3.5" />
-                {busyAction === "deposit" ? "..." : "Depositar"}
-              </button>
-            </div>
-
-            <div className="rounded-lg border border-kipu-border bg-kipu-bg p-2">
-              <label className="mb-1 block text-xs text-zinc-300">
-                Retirar (siempre libre)
-              </label>
-              <input
-                type="text"
-                value={withdrawAmount}
-                onChange={(e) => setWithdrawAmount(e.target.value)}
-                className="mb-1.5 w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100"
-              />
-              <button
-                type="button"
-                disabled={!canWithdraw}
-                onClick={() => void onWithdraw(withdrawAmount)}
-                className="inline-flex w-full items-center justify-center gap-1 rounded-md border border-kipu-gold/50 bg-kipu-gold/15 px-2 py-1.5 text-xs font-medium text-kipu-gold hover:bg-kipu-gold/25 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/70 disabled:text-zinc-500"
-              >
-                <ArrowUpFromLine className="h-3.5 w-3.5" />
-                {busyAction === "withdraw" ? "..." : "Retirar"}
-              </button>
-            </div>
-          </div>
-
           <div
-            data-tour="allowlist"
-            className="rounded-lg border border-kipu-border bg-kipu-bg p-2.5"
+            role="tablist"
+            aria-label="Secciones de configuración de bóveda"
+            className="grid grid-cols-3 gap-1 rounded-lg border border-kipu-border bg-kipu-bg p-1"
           >
-            <div className="mb-2 flex items-center justify-between">
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-200">
-                <Users className="h-3.5 w-3.5 text-kipu-gold" />
-                Allowlist de destinatarios
-                {experienceLevel !== "advanced" && (
-                  <InfoTooltip text="Solo las direcciones en esta lista pueden recibir pagos del agente." />
-                )}
-              </span>
-              <span className="font-mono text-xs text-zinc-300">
-                {vault.recipientCount}/8
-              </span>
-            </div>
-
-            <div className="mb-2 flex gap-1.5">
-              <input
-                type="text"
-                value={newRecipient}
-                onChange={(e) => setNewRecipient(e.target.value)}
-                placeholder="Wallet destino (base58)"
-                className="min-w-0 flex-1 rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100 placeholder:text-zinc-500"
-              />
-              <button
-                type="button"
-                disabled={!canAddRecipient}
-                onClick={() => {
-                  const target = newRecipient.trim();
-                  setNewRecipient("");
-                  void onAddRecipient(target);
-                }}
-                className="inline-flex items-center gap-1 rounded bg-kipu-gold px-2.5 py-1 text-xs font-semibold text-zinc-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Agregar
-              </button>
-            </div>
-
-            {vault.allowedRecipients.length === 0 ? (
-              <p className="text-xs text-zinc-400">
-                Sin destinatarios autorizados aún. Agrega una wallet confiable
-                para habilitar envíos.
-              </p>
-            ) : (
-              <ul className="space-y-1.5">
-                {vault.allowedRecipients.map((addr) => (
-                  <li
-                    key={addr}
-                    className="flex items-center justify-between rounded border border-kipu-border bg-kipu-card px-2 py-1"
-                  >
-                    <a
-                      href={explorerAddressUrl(addr)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="font-mono text-[11px] text-zinc-200 hover:text-kipu-gold"
-                    >
-                      {truncateMiddle(addr, 8, 6)}
-                    </a>
-                    <button
-                      type="button"
-                      disabled={!isOwner || busyAction !== null}
-                      onClick={() => void onRemoveRecipient(addr)}
-                      title="Quitar de allowlist"
-                      className="text-zinc-500 hover:text-kipu-crimson disabled:opacity-40"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "rules"}
+              onClick={() => setActiveTab("rules")}
+              className={`inline-flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition ${
+                activeTab === "rules"
+                  ? "bg-kipu-card text-white shadow"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              <SlidersHorizontal className="h-3 w-3" />
+              Políticas
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "funds"}
+              onClick={() => setActiveTab("funds")}
+              className={`inline-flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition ${
+                activeTab === "funds"
+                  ? "bg-kipu-card text-white shadow"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              <Wallet className="h-3 w-3" />
+              Fondos
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "allowlist"}
+              onClick={() => setActiveTab("allowlist")}
+              className={`inline-flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition ${
+                activeTab === "allowlist"
+                  ? "bg-kipu-card text-white shadow"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              <Users className="h-3 w-3" />
+              Allowlist ({vault.recipientCount})
+            </button>
           </div>
 
-          <details
-            key={`policy-details-${experienceLevel}`}
-            open={experienceLevel === "advanced" ? true : undefined}
-            className="rounded-lg border border-kipu-border bg-kipu-bg p-2.5"
-          >
-            <summary className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-zinc-300">
-              <Settings2 className="h-3.5 w-3.5 text-kipu-gold" />
-              Actualizar políticas
-            </summary>
-            <div className="mt-2 space-y-2">
-              <input
-                type="text"
-                value={policyAgent}
-                onChange={(e) => setPolicyAgent(e.target.value)}
-                placeholder="Nuevo agente (opcional)"
-                className="w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100 placeholder:text-zinc-500"
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="text"
-                  value={policyMaxPerTx}
-                  onChange={(e) => setPolicyMaxPerTx(e.target.value)}
-                  placeholder="Max/tx (Mock USDC)"
-                  className="w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100 placeholder:text-zinc-500"
-                />
-                <input
-                  type="text"
-                  value={policyDailyLimit}
-                  onChange={(e) => setPolicyDailyLimit(e.target.value)}
-                  placeholder="Diario (Mock USDC)"
-                  className="w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100 placeholder:text-zinc-500"
-                />
+          {activeTab === "rules" && (
+            <div className="space-y-2.5">
+              <div className="space-y-2 rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
+                <div>
+                  <div className="mb-1 flex justify-between text-xs">
+                    <span className="inline-flex items-center gap-1 text-zinc-300">
+                      Ventana 24h (fija) / Límite diario
+                      {experienceLevel === "beginner" && (
+                        <InfoTooltip text="Gasto acumulado en las últimas 24h frente al máximo diario permitido." />
+                      )}
+                    </span>
+                    <span className="font-mono text-zinc-100">
+                      {formatBaseUnitsAsUsdc(vault.spentToday, 2)} /{" "}
+                      {formatBaseUnitsAsUsdc(vault.dailyLimit, 2)} Mock USDC
+                    </span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+                    <div
+                      className={`h-full transition-all ${
+                        dailyPct >= 90 ? "bg-kipu-crimson" : "bg-kipu-emerald"
+                      }`}
+                      style={{ width: `${dailyPct}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="mb-1 flex justify-between text-xs">
+                    <span className="inline-flex items-center gap-1 text-zinc-300">
+                      Tope por transacción
+                      {experienceLevel === "beginner" && (
+                        <InfoTooltip text="Monto máximo que el agente puede transferir en una sola operación." />
+                      )}
+                    </span>
+                    <span className="font-mono text-zinc-100">
+                      {formatBaseUnitsAsUsdc(vault.maxPerTx, 2)} Mock USDC
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
+                    <div
+                      className="h-full bg-zinc-400"
+                      style={{ width: `${perTxPct}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-0.5 text-xs">
+                  <div className="rounded border border-kipu-border bg-kipu-card px-2 py-1">
+                    <span className="block text-zinc-400">Estado</span>
+                    <span
+                      className={`font-semibold ${
+                        vault.isFrozen ? "text-sky-300" : "text-kipu-emerald"
+                      }`}
+                    >
+                      {vault.isFrozen ? "Congelada (Freeze)" : "Activa"}
+                    </span>
+                  </div>
+                  <div className="rounded border border-kipu-border bg-kipu-card px-2 py-1">
+                    <span className="block text-zinc-400">Ejecuciones</span>
+                    <span className="font-mono font-semibold text-zinc-100">
+                      {vault.totalExecutions.toString()}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-xs text-zinc-300">
+                  Agente:{" "}
+                  <span className="font-mono text-zinc-100">
+                    {truncateMiddle(vault.agent, 6, 6)}
+                  </span>
+                </div>
               </div>
-              <button
-                type="button"
-                disabled={!isOwner || busyAction !== null}
-                onClick={() =>
-                  void onUpdatePolicy({
-                    newAgent: policyAgent,
-                    newMaxPerTxUsdc: policyMaxPerTx,
-                    newDailyLimitUsdc: policyDailyLimit,
-                  })
-                }
-                className="w-full rounded-md border border-kipu-gold/50 bg-kipu-gold/15 px-2.5 py-1.5 text-xs font-medium text-kipu-gold hover:bg-kipu-gold/25 disabled:cursor-not-allowed disabled:opacity-40"
+
+              <details
+                key={`policy-details-${experienceLevel}`}
+                open={experienceLevel === "advanced" ? true : undefined}
+                className="rounded-lg border border-kipu-border bg-kipu-bg p-2.5"
               >
-                {busyAction === "update_policy"
-                  ? "Actualizando..."
-                  : "Firmar update_policy"}
-              </button>
+                <summary className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-zinc-200">
+                  <Settings2 className="h-3.5 w-3.5 text-kipu-gold" />
+                  Actualizar políticas
+                </summary>
+                <div className="mt-2 space-y-2">
+                  <input
+                    type="text"
+                    value={policyAgent}
+                    onChange={(e) => setPolicyAgent(e.target.value)}
+                    placeholder="Nuevo agente (opcional)"
+                    className="w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100 placeholder:text-zinc-500"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      value={policyMaxPerTx}
+                      onChange={(e) => setPolicyMaxPerTx(e.target.value)}
+                      placeholder="Max/tx (Mock USDC)"
+                      className="w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100 placeholder:text-zinc-500"
+                    />
+                    <input
+                      type="text"
+                      value={policyDailyLimit}
+                      onChange={(e) => setPolicyDailyLimit(e.target.value)}
+                      placeholder="Diario (Mock USDC)"
+                      className="w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100 placeholder:text-zinc-500"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    disabled={!isOwner || busyAction !== null}
+                    onClick={() =>
+                      void onUpdatePolicy({
+                        newAgent: policyAgent,
+                        newMaxPerTxUsdc: policyMaxPerTx,
+                        newDailyLimitUsdc: policyDailyLimit,
+                      })
+                    }
+                    className="w-full rounded-md bg-kipu-gold px-2.5 py-1.5 text-xs font-semibold text-zinc-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
+                  >
+                    {busyAction === "update_policy"
+                      ? "Actualizando..."
+                      : "Firmar update_policy"}
+                  </button>
+                </div>
+              </details>
             </div>
-          </details>
+          )}
+
+          {activeTab === "funds" && (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
+                <label className="mb-1 block text-xs text-zinc-300">
+                  Depositar (Mock USDC)
+                </label>
+                <input
+                  type="text"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  className="mb-2 w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100"
+                />
+                <button
+                  type="button"
+                  disabled={!canDeposit}
+                  onClick={() => void onDeposit(depositAmount)}
+                  className="inline-flex w-full items-center justify-center gap-1 rounded-md border border-kipu-emerald/50 bg-kipu-emerald/15 px-2 py-1.5 text-xs font-medium text-kipu-emerald hover:bg-kipu-emerald/25 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/70 disabled:text-zinc-500"
+                >
+                  <ArrowDownToLine className="h-3.5 w-3.5" />
+                  {busyAction === "deposit" ? "..." : "Depositar"}
+                </button>
+              </div>
+
+              <div className="rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
+                <label className="mb-1 block text-xs text-zinc-300">
+                  Retirar (siempre libre)
+                </label>
+                <input
+                  type="text"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  className="mb-2 w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100"
+                />
+                <button
+                  type="button"
+                  disabled={!canWithdraw}
+                  onClick={() => void onWithdraw(withdrawAmount)}
+                  className="inline-flex w-full items-center justify-center gap-1 rounded-md border border-zinc-600 bg-kipu-card px-2 py-1.5 text-xs font-medium text-zinc-100 hover:border-zinc-400 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-zinc-900 disabled:text-zinc-500"
+                >
+                  <ArrowUpFromLine className="h-3.5 w-3.5" />
+                  {busyAction === "withdraw" ? "..." : "Retirar"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "allowlist" && (
+            <div
+              data-tour="allowlist"
+              className="rounded-lg border border-kipu-border bg-kipu-bg p-2.5"
+            >
+              <div className="mb-2 flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-200">
+                  <Users className="h-3.5 w-3.5 text-kipu-emerald" />
+                  Allowlist de destinatarios
+                  {experienceLevel !== "advanced" && (
+                    <InfoTooltip text="Solo las direcciones en esta lista pueden recibir pagos del agente." />
+                  )}
+                </span>
+                <span className="font-mono text-xs text-zinc-300">
+                  {vault.recipientCount}/8
+                </span>
+              </div>
+
+              <div className="mb-2 flex gap-1.5">
+                <input
+                  type="text"
+                  value={newRecipient}
+                  onChange={(e) => setNewRecipient(e.target.value)}
+                  placeholder="Wallet destino (base58)"
+                  className="min-w-0 flex-1 rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100 placeholder:text-zinc-500"
+                />
+                <button
+                  type="button"
+                  disabled={!canAddRecipient}
+                  onClick={() => {
+                    const target = newRecipient.trim();
+                    setNewRecipient("");
+                    void onAddRecipient(target);
+                  }}
+                  className="inline-flex items-center gap-1 rounded bg-kipu-gold px-2.5 py-1 text-xs font-semibold text-zinc-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Agregar
+                </button>
+              </div>
+
+              {vault.allowedRecipients.length === 0 ? (
+                <p className="text-xs text-zinc-300">
+                  Sin destinatarios autorizados aún. Agrega una wallet
+                  confiable para habilitar envíos.
+                </p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {vault.allowedRecipients.map((addr) => (
+                    <li
+                      key={addr}
+                      className="flex items-center justify-between rounded border border-kipu-border bg-kipu-card px-2 py-1"
+                    >
+                      <a
+                        href={explorerAddressUrl(addr)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-mono text-[11px] text-zinc-200 hover:text-kipu-emerald"
+                      >
+                        {truncateMiddle(addr, 8, 6)}
+                      </a>
+                      <button
+                        type="button"
+                        disabled={!isOwner || busyAction !== null}
+                        onClick={() => void onRemoveRecipient(addr)}
+                        title="Quitar de allowlist"
+                        className="text-zinc-400 hover:text-kipu-crimson disabled:opacity-40"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </>
       )}
     </aside>

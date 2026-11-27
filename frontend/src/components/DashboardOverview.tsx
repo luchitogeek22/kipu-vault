@@ -3,11 +3,12 @@
 import React from "react";
 import {
   Activity,
-  AlertTriangle,
   Ban,
+  ChevronDown,
   Gauge,
   ShieldAlert,
   ShieldCheck,
+  Snowflake,
   Users,
   Wallet,
 } from "lucide-react";
@@ -59,34 +60,34 @@ export function DashboardOverview({
 
   const latest = auditEntries[0];
 
-  let securityState: "ok" | "warning" | "danger" = "ok";
+  let securityState: "ok" | "freeze" | "warning" | "danger" = "ok";
   let securityHeadline =
     "Tu bóveda está protegida y operando dentro de las políticas configuradas.";
 
   if (!connectedWallet) {
     securityState = "ok";
     securityHeadline =
-      "Demo interactiva lista: prueba los 4 escenarios en Kipu AI Copilot ahora mismo. Conecta tu wallet para operar tu bóveda real en Solana Devnet.";
+      "Demo interactiva lista abajo: prueba los escenarios de pago, ataque y Freeze al instante.";
   } else if (!vault) {
     securityState = "warning";
     securityHeadline =
-      "Wallet conectada. Puedes usar el Sandbox en Copilot o crear tu bóveda real en Políticas On-Chain.";
+      "Wallet conectada. Crea tu bóveda real en el panel lateral o prueba el Sandbox en Copilot.";
   } else if (vault.isFrozen) {
-    securityState = "danger";
+    securityState = "freeze";
     securityHeadline =
-      "Protección de emergencia activa (Freeze): el agente no puede ejecutar pagos hasta que descongeles.";
+      "Emergency Freeze activo: el agente quedó detenido on-chain hasta que descongeles.";
   } else if (lowSolWarning) {
-    securityState = "warning";
+    securityState = "danger";
     securityHeadline =
       "Advertencia: el agente tiene poco SOL en Devnet para pagar comisiones de red.";
   } else if (vault.recipientCount === 0) {
     securityState = "warning";
     securityHeadline =
-      "Tu Allowlist está vacía: ningún agente podrá transferir fondos hasta que autorices una dirección.";
+      "Tu Allowlist está vacía: agrega al menos una dirección en Configuración antes de transferir.";
   } else if (!isAuthenticated) {
     securityState = "ok";
     securityHeadline =
-      "Bóveda lista on-chain. Prueba el Sandbox en Copilot o firma SIWS arriba cuando quieras ejecutar transacciones reales.";
+      "Bóveda lista on-chain. Prueba el Sandbox abajo o inicia sesión SIWS arriba para ejecutar en Devnet.";
   }
 
   return (
@@ -96,21 +97,25 @@ export function DashboardOverview({
       className="space-y-2.5"
     >
       <div
-        className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3.5 py-2.5 text-xs ${
+        className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3.5 py-2 text-xs ${
           securityState === "ok"
             ? "border-kipu-emerald/45 bg-kipu-emerald/10 text-emerald-100"
-            : securityState === "danger"
-              ? "border-kipu-crimson/60 bg-kipu-crimson/10 text-red-100"
-              : "border-kipu-gold/45 bg-kipu-gold/10 text-amber-100"
+            : securityState === "freeze"
+              ? "border-sky-400/60 bg-sky-500/15 text-sky-100"
+              : securityState === "danger"
+                ? "border-kipu-crimson/60 bg-kipu-crimson/10 text-red-100"
+                : "border-zinc-700 bg-kipu-card text-zinc-200"
         }`}
       >
         <div className="flex items-center gap-2">
           {securityState === "ok" ? (
             <ShieldCheck className="h-4 w-4 shrink-0 text-kipu-emerald" />
+          ) : securityState === "freeze" ? (
+            <Snowflake className="h-4 w-4 shrink-0 text-sky-300" />
           ) : securityState === "danger" ? (
             <ShieldAlert className="h-4 w-4 shrink-0 text-kipu-crimson" />
           ) : (
-            <AlertTriangle className="h-4 w-4 shrink-0 text-kipu-gold" />
+            <ShieldCheck className="h-4 w-4 shrink-0 text-zinc-300" />
           )}
           <span className="font-medium">{securityHeadline}</span>
         </div>
@@ -121,140 +126,168 @@ export function DashboardOverview({
       </div>
 
       {experienceLevel !== "advanced" && (
-        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-6">
-          <div className="rounded-xl border border-kipu-border bg-kipu-card p-3 transition hover:border-zinc-600">
-            <div className="flex items-center justify-between text-xs text-zinc-300">
-              <span className="inline-flex items-center gap-1.5 font-medium">
-                <ShieldCheck className="h-3.5 w-3.5 text-kipu-emerald" />
-                Estado de protección
-              </span>
-              <InfoTooltip text="Indica si las reglas on-chain permiten operar al agente o si la bóveda está congelada." />
-            </div>
-            {loadingVault ? (
-              <SkeletonBlock className="mt-2 h-5 w-20" />
-            ) : (
-              <p
-                className={`mt-1.5 text-sm font-bold ${
-                  !vault
-                    ? "text-zinc-300"
+        <div className="space-y-2">
+          {/* Fila superior: solo 3 métricas principales */}
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+            <div className="rounded-xl border border-kipu-border bg-kipu-card p-3 transition hover:border-zinc-600">
+              <div className="flex items-center justify-between text-xs text-zinc-300">
+                <span className="inline-flex items-center gap-1.5 font-medium">
+                  {vault?.isFrozen ? (
+                    <Snowflake className="h-3.5 w-3.5 text-sky-300" />
+                  ) : (
+                    <ShieldCheck className="h-3.5 w-3.5 text-kipu-emerald" />
+                  )}
+                  Protección
+                </span>
+                <InfoTooltip text="Indica si las reglas on-chain permiten operar al agente o si la bóveda está congelada con Freeze." />
+              </div>
+              {loadingVault ? (
+                <SkeletonBlock className="mt-2 h-5 w-24" />
+              ) : (
+                <p
+                  className={`mt-1.5 text-sm font-bold ${
+                    !vault
+                      ? "text-zinc-200"
+                      : vault.isFrozen
+                        ? "text-sky-300"
+                        : "text-kipu-emerald"
+                  }`}
+                >
+                  {!vault
+                    ? "Modo Sandbox"
                     : vault.isFrozen
-                      ? "text-kipu-crimson"
-                      : "text-kipu-emerald"
-                }`}
-              >
-                {!vault ? "Sin bóveda" : vault.isFrozen ? "Congelada" : "Protegida"}
+                      ? "Congelada (Freeze)"
+                      : "Protegida"}
+                </p>
+              )}
+              <p className="mt-0.5 text-[11px] text-zinc-300">
+                {vault?.isFrozen ? "Agente detenido on-chain" : "Guardrails activos"}
               </p>
-            )}
-            <p className="mt-0.5 text-[11px] text-zinc-400">
-              {vault?.isFrozen ? "Agente bloqueado" : "Guardrails activos"}
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-kipu-border bg-kipu-card p-3 transition hover:border-zinc-600">
-            <div className="flex items-center justify-between text-xs text-zinc-300">
-              <span className="inline-flex items-center gap-1.5 font-medium">
-                <Wallet className="h-3.5 w-3.5 text-kipu-gold" />
-                Saldo de la bóveda
-              </span>
-              <InfoTooltip text="Fondos depositados bajo custodia de tu bóveda. Solo tú puedes retirarlos sin límites." />
             </div>
-            {loadingVault ? (
-              <SkeletonBlock className="mt-2 h-5 w-24" />
-            ) : (
-              <p className="mt-1.5 font-mono text-sm font-bold text-zinc-100">
+
+            <div className="rounded-xl border border-kipu-border bg-kipu-card p-3 transition hover:border-zinc-600">
+              <div className="flex items-center justify-between text-xs text-zinc-300">
+                <span className="inline-flex items-center gap-1.5 font-medium">
+                  <Wallet className="h-3.5 w-3.5 text-zinc-300" />
+                  Saldo
+                </span>
+                <InfoTooltip text="Fondos depositados bajo custodia de tu bóveda. Solo tú puedes retirarlos sin límites." />
+              </div>
+              {loadingVault ? (
+                <SkeletonBlock className="mt-2 h-5 w-24" />
+              ) : (
+                <p className="mt-1.5 font-mono text-sm font-bold text-zinc-100">
+                  {vault
+                    ? `${formatBaseUnitsAsUsdc(vault.vaultTokenBalance, 2)} USDC`
+                    : "0.00 USDC"}
+                </p>
+              )}
+              <p className="mt-0.5 text-[11px] text-zinc-300">
+                Mock USDC en Devnet
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-kipu-border bg-kipu-card p-3 transition hover:border-zinc-600">
+              <div className="flex items-center justify-between text-xs text-zinc-300">
+                <span className="inline-flex items-center gap-1.5 font-medium">
+                  <Gauge className="h-3.5 w-3.5 text-zinc-300" />
+                  Límite disponible
+                </span>
+                <InfoTooltip text="Cuánto más puede gastar el agente dentro de la ventana actual de 24 horas." />
+              </div>
+              {loadingVault ? (
+                <SkeletonBlock className="mt-2 h-5 w-24" />
+              ) : (
+                <p className="mt-1.5 font-mono text-sm font-bold text-zinc-100">
+                  {vault
+                    ? `${formatBaseUnitsAsUsdc(remainingDaily, 2)} / ${formatBaseUnitsAsUsdc(vault.dailyLimit, 0)} USDC`
+                    : "50.00 USDC (demo)"}
+                </p>
+              )}
+              <p className="mt-0.5 text-[11px] text-zinc-300">
                 {vault
-                  ? `${formatBaseUnitsAsUsdc(vault.vaultTokenBalance, 2)} USDC`
-                  : "0.00 USDC"}
+                  ? `Tope por pago: ${formatBaseUnitsAsUsdc(vault.maxPerTx, 0)} USDC`
+                  : "Tope por pago demo: 10 USDC"}
               </p>
-            )}
-            <p className="mt-0.5 text-[11px] text-zinc-400">
-              Mock USDC en Devnet
-            </p>
+            </div>
           </div>
 
-          <div className="rounded-xl border border-kipu-border bg-kipu-card p-3 transition hover:border-zinc-600">
-            <div className="flex items-center justify-between text-xs text-zinc-300">
-              <span className="inline-flex items-center gap-1.5 font-medium">
-                <Gauge className="h-3.5 w-3.5 text-kipu-gold" />
-                Límite disponible
+          {/* Detalle colapsable para las 3 métricas secundarias */}
+          <details className="group rounded-xl border border-kipu-border bg-kipu-card/60 px-3.5 py-2">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs text-zinc-300 hover:text-white">
+              <span className="inline-flex flex-wrap items-center gap-3 font-medium">
+                <span>Más métricas:</span>
+                <span className="font-mono text-[11px] text-red-300">
+                  Bloqueadas: {blockedCount}
+                </span>
+                <span className="font-mono text-[11px] text-emerald-300">
+                  Allowlist: {vault ? `${vault.recipientCount}/8` : "0/8"}
+                </span>
+                <span className="font-mono text-[11px] text-zinc-300">
+                  Última: {latest ? latest.status : "Sin registros"}
+                </span>
               </span>
-              <InfoTooltip text="Cuánto más puede gastar el agente dentro de la ventana actual de 24 horas." />
-            </div>
-            {loadingVault ? (
-              <SkeletonBlock className="mt-2 h-5 w-24" />
-            ) : (
-              <p className="mt-1.5 font-mono text-sm font-bold text-zinc-100">
-                {vault
-                  ? `${formatBaseUnitsAsUsdc(remainingDaily, 2)} / ${formatBaseUnitsAsUsdc(vault.dailyLimit, 0)}`
-                  : "—"}
-              </p>
-            )}
-            <p className="mt-0.5 text-[11px] text-zinc-400">
-              {vault
-                ? `Tope por pago: ${formatBaseUnitsAsUsdc(vault.maxPerTx, 0)} USDC`
-                : "Sin límite fijado"}
-            </p>
-          </div>
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-zinc-400 transition-transform group-open:rotate-180" />
+            </summary>
 
-          <div className="rounded-xl border border-kipu-border bg-kipu-card p-3 transition hover:border-zinc-600">
-            <div className="flex items-center justify-between text-xs text-zinc-300">
-              <span className="inline-flex items-center gap-1.5 font-medium">
-                <Ban className="h-3.5 w-3.5 text-kipu-crimson" />
-                Bloqueadas
-              </span>
-              <InfoTooltip text="Intentos peligrosos o fuera de política detenidos automáticamente antes de mover fondos." />
-            </div>
-            <p className="mt-1.5 font-mono text-sm font-bold text-zinc-100">
-              {blockedCount}
-            </p>
-            <p className="mt-0.5 text-[11px] text-zinc-400">
-              {isAuthenticated
-                ? "Amenazas frenadas"
-                : "Inicia sesión para ver"}
-            </p>
-          </div>
+            <div className="mt-2.5 grid grid-cols-1 gap-2.5 border-t border-kipu-border pt-2.5 sm:grid-cols-3">
+              <div className="rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
+                <div className="flex items-center justify-between text-xs text-zinc-300">
+                  <span className="inline-flex items-center gap-1.5 font-medium">
+                    <Ban className="h-3.5 w-3.5 text-kipu-crimson" />
+                    Bloqueadas
+                  </span>
+                  <InfoTooltip text="Intentos peligrosos o fuera de política detenidos automáticamente antes de mover fondos." />
+                </div>
+                <p className="mt-1 font-mono text-sm font-bold text-red-200">
+                  {blockedCount}
+                </p>
+                <p className="text-[11px] text-zinc-400">
+                  {isAuthenticated
+                    ? "Amenazas frenadas en bóveda"
+                    : "Requiere sesión para historial on-chain"}
+                </p>
+              </div>
 
-          <div className="rounded-xl border border-kipu-border bg-kipu-card p-3 transition hover:border-zinc-600">
-            <div className="flex items-center justify-between text-xs text-zinc-300">
-              <span className="inline-flex items-center gap-1.5 font-medium">
-                <Users className="h-3.5 w-3.5 text-kipu-emerald" />
-                Allowlist
-              </span>
-              <InfoTooltip text="Cantidad de cuentas destino aprobadas por ti. El agente no puede enviar a otras." />
-            </div>
-            {loadingVault ? (
-              <SkeletonBlock className="mt-2 h-5 w-16" />
-            ) : (
-              <p className="mt-1.5 font-mono text-sm font-bold text-zinc-100">
-                {vault ? `${vault.recipientCount} / 8` : "0 / 8"}
-              </p>
-            )}
-            <p className="mt-0.5 text-[11px] text-zinc-400">
-              Wallets autorizadas
-            </p>
-          </div>
+              <div className="rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
+                <div className="flex items-center justify-between text-xs text-zinc-300">
+                  <span className="inline-flex items-center gap-1.5 font-medium">
+                    <Users className="h-3.5 w-3.5 text-kipu-emerald" />
+                    Allowlist
+                  </span>
+                  <InfoTooltip text="Cantidad de cuentas destino aprobadas por ti. El agente no puede enviar a otras." />
+                </div>
+                <p className="mt-1 font-mono text-sm font-bold text-emerald-200">
+                  {vault ? `${vault.recipientCount} / 8` : "0 / 8"}
+                </p>
+                <p className="text-[11px] text-zinc-400">
+                  Wallets autorizadas
+                </p>
+              </div>
 
-          <div className="rounded-xl border border-kipu-border bg-kipu-card p-3 transition hover:border-zinc-600">
-            <div className="flex items-center justify-between text-xs text-zinc-300">
-              <span className="inline-flex items-center gap-1.5 font-medium">
-                <Activity className="h-3.5 w-3.5 text-kipu-gold" />
-                Última actividad
-              </span>
-              <InfoTooltip text="Resultado y hora de la operación más reciente evaluada en tu bóveda." />
+              <div className="rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
+                <div className="flex items-center justify-between text-xs text-zinc-300">
+                  <span className="inline-flex items-center gap-1.5 font-medium">
+                    <Activity className="h-3.5 w-3.5 text-zinc-300" />
+                    Última actividad
+                  </span>
+                  <InfoTooltip text="Resultado y hora de la operación más reciente evaluada en tu bóveda." />
+                </div>
+                <p className="mt-1 truncate font-mono text-sm font-bold text-zinc-100">
+                  {latest ? latest.status : "Sin actividad"}
+                </p>
+                <p className="text-[11px] text-zinc-400">
+                  {latest
+                    ? `${formatShortTime(latest.created_at)} · ${
+                        latest.amount_base_units
+                          ? `${formatBaseUnitsAsUsdc(latest.amount_base_units, 2)} USDC`
+                          : "0 USDC"
+                      }`
+                    : "Sin registros aún"}
+                </p>
+              </div>
             </div>
-            <p className="mt-1.5 truncate font-mono text-sm font-bold text-zinc-100">
-              {latest ? latest.status : "Sin actividad"}
-            </p>
-            <p className="mt-0.5 text-[11px] text-zinc-400">
-              {latest
-                ? `${formatShortTime(latest.created_at)} · ${
-                    latest.amount_base_units
-                      ? `${formatBaseUnitsAsUsdc(latest.amount_base_units, 2)} USDC`
-                      : "0 USDC"
-                  }`
-                : "Sin registros aún"}
-            </p>
-          </div>
+          </details>
         </div>
       )}
     </section>

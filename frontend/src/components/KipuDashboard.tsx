@@ -685,26 +685,6 @@ export function KipuDashboard() {
         )}
 
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
-          <div className="lg:col-span-4">
-            <PolicyPanel
-              mintInput={mintInput}
-              onChangeMintInput={setMintInput}
-              defaultAgentPubkey={health?.agent_pubkey ?? ""}
-              vault={vault}
-              connectedWallet={connectedWallet}
-              loadingVault={loadingVault}
-              onRefreshVault={refreshVault}
-              onInitializeVault={handleInitializeVault}
-              onDeposit={handleDeposit}
-              onWithdraw={handleWithdraw}
-              onUpdatePolicy={handleUpdatePolicy}
-              onAddRecipient={handleAddRecipient}
-              onRemoveRecipient={handleRemoveRecipient}
-              busyAction={busyAction}
-              experienceLevel={experienceLevel}
-            />
-          </div>
-
           <div className="flex flex-col gap-3 lg:col-span-8">
             <KipuCopilot
               demoMode={Boolean(health?.demo_mode)}
@@ -734,6 +714,26 @@ export function KipuDashboard() {
             <AuditLedger
               entries={auditEntries}
               onVerifyTx={(sig) => verifyAuditTx(sig)}
+              experienceLevel={experienceLevel}
+            />
+          </div>
+
+          <div className="lg:col-span-4">
+            <PolicyPanel
+              mintInput={mintInput}
+              onChangeMintInput={setMintInput}
+              defaultAgentPubkey={health?.agent_pubkey ?? ""}
+              vault={vault}
+              connectedWallet={connectedWallet}
+              loadingVault={loadingVault}
+              onRefreshVault={refreshVault}
+              onInitializeVault={handleInitializeVault}
+              onDeposit={handleDeposit}
+              onWithdraw={handleWithdraw}
+              onUpdatePolicy={handleUpdatePolicy}
+              onAddRecipient={handleAddRecipient}
+              onRemoveRecipient={handleRemoveRecipient}
+              busyAction={busyAction}
               experienceLevel={experienceLevel}
             />
           </div>

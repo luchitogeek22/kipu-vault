@@ -241,6 +241,21 @@ export function KipuCopilot({
   const selectedExample =
     COPILOT_EXAMPLES.find((ex) => ex.id === selectedExampleId) ?? null;
   const visibleMessages = canRealExecute ? messages : sandboxMessages;
+  const lastAssistantWithResult = [...visibleMessages]
+    .reverse()
+    .find((m) => m.role === "assistant" && m.result);
+  const lastUserPromptMsg = [...visibleMessages]
+    .reverse()
+    .find((m) => m.role === "user");
+  const flowR = lastAssistantWithResult?.result;
+  const flowStatusKind: "idle" | "freeze" | "allowed" | "blocked" =
+    effectiveFrozen || flowR?.error_name === "VaultFrozen"
+      ? "freeze"
+      : !flowR
+        ? "idle"
+        : flowR.status === "EXECUTED"
+          ? "allowed"
+          : "blocked";
   const sandboxLimitDisplay =
     maxPerTxDisplay !== "—" ? maxPerTxDisplay : "10.00 Mock USDC";
   const sandboxDailyDisplay =
@@ -551,10 +566,10 @@ export function KipuCopilot({
       </div>
 
       {effectiveFrozen && (
-        <div className="mb-2.5 flex items-center gap-2 rounded-lg border border-kipu-crimson/50 bg-kipu-crimson/10 px-3 py-1.5 text-xs text-red-100">
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-kipu-crimson" />
+        <div className="mb-2.5 flex items-center gap-2 rounded-lg border border-sky-400/60 bg-sky-500/15 px-3 py-1.5 text-xs text-sky-100">
+          <Snowflake className="h-3.5 w-3.5 shrink-0 text-sky-300" />
           <span>
-            Bóveda congelada (FROZEN): el agente está bloqueado por Emergency
+            Bóveda congelada (FROZEN): el agente está detenido por Emergency
             Freeze. Presiona{" "}
             <strong className="text-white">4. Descongelar</strong> antes de
             ejecutar <strong className="text-white">1. Prueba Segura</strong>.
@@ -563,28 +578,182 @@ export function KipuCopilot({
       )}
 
       {!canRealExecute && (
-        <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-kipu-gold/45 bg-kipu-gold/10 px-3 py-1.5 text-xs text-amber-100">
+        <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-700 bg-kipu-bg px-3 py-1.5 text-xs text-zinc-200">
           <span>
-            <strong className="text-kipu-gold">Modo Demo Sandbox:</strong>{" "}
-            prueba todos los escenarios ahora mismo sin wallet (simulación local).
+            <strong className="text-white">Modo Demo Sandbox:</strong>{" "}
+            prueba todos los escenarios al instante sin wallet (simulación local).
           </span>
-          <span className="font-mono text-[11px] text-amber-200">
+          <span className="font-mono text-[11px] text-zinc-300">
             Conecta Phantom + SIWS para ejecución real en Devnet
           </span>
         </div>
       )}
 
-      {/* Demo address inputs & 4 scenario buttons */}
+      {/* Flujo visual grande: lo primero que ve el juez */}
+      <div className="mb-3 rounded-xl border border-kipu-border bg-kipu-bg p-3">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-300">
+            Flujo en vivo · Guardrails en acción
+          </span>
+          <span
+            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] font-bold ${
+              flowStatusKind === "allowed"
+                ? "border-kipu-emerald/60 bg-kipu-emerald/15 text-emerald-200"
+                : flowStatusKind === "blocked"
+                  ? "border-kipu-crimson/70 bg-kipu-crimson/20 text-red-100"
+                  : flowStatusKind === "freeze"
+                    ? "border-sky-400/70 bg-sky-500/20 text-sky-100"
+                    : "border-zinc-700 bg-kipu-card text-zinc-300"
+            }`}
+          >
+            {flowStatusKind === "allowed"
+              ? "PERMITIDO"
+              : flowStatusKind === "blocked"
+                ? "BLOQUEADO"
+                : flowStatusKind === "freeze"
+                  ? "FREEZE ACTIVO"
+                  : "LISTO PARA PROBAR"}
+          </span>
+        </div>
+
+        <div className="grid gap-2 md:grid-cols-3">
+          <div className="rounded-lg border border-kipu-border bg-kipu-card p-2.5">
+            <p className="font-mono text-[10px] uppercase tracking-wider text-zinc-400">
+              01 · Agente propone
+            </p>
+            <p className="mt-1 line-clamp-2 text-xs font-semibold text-white">
+              {lastUserPromptMsg
+                ? lastUserPromptMsg.text
+                : selectedExample
+                  ? selectedExample.promptText
+                  : "Elige un escenario abajo (seguro, ataque o Freeze)"}
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-kipu-border bg-kipu-card p-2.5">
+            <p className="font-mono text-[10px] uppercase tracking-wider text-zinc-400">
+              02 · Reglas evaluadas
+            </p>
+            <p className="mt-1 font-mono text-xs text-zinc-200">
+              Tope: {sandboxLimitDisplay}
+            </p>
+            <p className="text-[11px] text-zinc-300">
+              24h: {sandboxDailyDisplay} · Allowlist: {sandboxAllowedCount}/8
+            </p>
+          </div>
+
+          <div
+            className={`rounded-lg border p-2.5 ${
+              flowStatusKind === "allowed"
+                ? "border-kipu-emerald/60 bg-kipu-emerald/15 text-emerald-100"
+                : flowStatusKind === "blocked"
+                  ? "border-kipu-crimson bg-kipu-crimson/15 text-red-100"
+                  : flowStatusKind === "freeze"
+                    ? "border-sky-400/70 bg-sky-500/15 text-sky-100"
+                    : "border-kipu-border bg-kipu-card text-zinc-200"
+            }`}
+          >
+            <p className="font-mono text-[10px] uppercase tracking-wider opacity-85">
+              03 · Resultado
+            </p>
+            <p className="mt-1 text-xs font-bold text-white">
+              {flowStatusKind === "freeze"
+                ? "Agente detenido por Emergency Freeze"
+                : flowStatusKind === "allowed"
+                  ? `Permitido (${flowR?.amount_usdc ?? "5.00"} USDC)`
+                  : flowStatusKind === "blocked"
+                    ? `Bloqueado (${flowR?.error_name ?? "Política"})`
+                    : "Esperando ejecución"}
+            </p>
+            <p className="mt-0.5 line-clamp-1 text-[11px] opacity-90">
+              {flowStatusKind === "freeze"
+                ? "0 transferencias mientras esté congelada."
+                : flowR
+                  ? flowR.explanation_es
+                  : "Presiona 1, 2, 3 o 4 para comprobar."}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Botones de escenario destacados + ejemplos */}
       <div className="mb-2.5 space-y-2.5 rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            data-tour="demo-safe"
+            type="button"
+            disabled={
+              sending ||
+              (canRealExecute && (!validDemoRecipient || !hasFunds))
+            }
+            onClick={() => void runDemoSafe()}
+            title={
+              canRealExecute && !hasFunds
+                ? "Deposita Mock USDC antes de probar el pago seguro"
+                : "Prueba un pago válido de 5 Mock USDC hacia wallet_demo"
+            }
+            className="inline-flex items-center gap-1.5 rounded-lg border border-kipu-emerald/60 bg-kipu-emerald/20 px-3 py-2 text-xs font-semibold text-emerald-100 hover:bg-kipu-emerald/30 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/80 disabled:text-zinc-500"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-kipu-emerald" />
+            1. Prueba Segura
+          </button>
+
+          <div
+            data-tour="demo-redteam"
+            className="inline-flex flex-wrap items-center gap-2 rounded-md"
+          >
+            <button
+              type="button"
+              disabled={sending || (canRealExecute && !validDemoRecipient)}
+              onClick={() => void runDemoRedTeamAmount()}
+              title="Simula un LLM comprometido intentando enviar 150 Mock USDC para comprobar el bloqueo del guardrail"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-kipu-crimson/65 bg-kipu-crimson/20 px-3 py-2 text-xs font-semibold text-red-100 hover:bg-kipu-crimson/30 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/80 disabled:text-zinc-500"
+            >
+              <ShieldAlert className="h-3.5 w-3.5 text-kipu-crimson" />
+              2. Red-Team A (monto)
+            </button>
+
+            <button
+              type="button"
+              disabled={sending || (canRealExecute && !validAttacker)}
+              onClick={() => void runDemoRedTeamRecipient()}
+              title="Simula un LLM comprometido intentando transferir a una wallet no autorizada para comprobar la allowlist"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-kipu-crimson/65 bg-kipu-crimson/20 px-3 py-2 text-xs font-semibold text-red-100 hover:bg-kipu-crimson/30 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/80 disabled:text-zinc-500"
+            >
+              <AlertTriangle className="h-3.5 w-3.5 text-kipu-crimson" />
+              3. Red-Team B (destinatario)
+            </button>
+          </div>
+
+          <button
+            data-tour="demo-freeze"
+            type="button"
+            disabled={freezing || (canRealExecute && !isOwner)}
+            onClick={() => void handleFreezeButton()}
+            className={
+              effectiveFrozen
+                ? "ml-auto inline-flex items-center gap-1.5 rounded-lg border border-kipu-emerald/60 bg-kipu-emerald/20 px-3.5 py-2 text-xs font-semibold text-emerald-100 hover:bg-kipu-emerald/30 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/80 disabled:text-zinc-500"
+                : "ml-auto inline-flex items-center gap-1.5 rounded-lg border border-sky-400/70 bg-sky-500/20 px-3.5 py-2 text-xs font-semibold text-sky-100 hover:bg-sky-500/30 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/80 disabled:text-zinc-500"
+            }
+          >
+            <Snowflake className="h-3.5 w-3.5 text-sky-300" />
+            {freezing
+              ? "Firmando..."
+              : effectiveFrozen
+                ? "4. Descongelar"
+                : "4. Congelar"}
+          </button>
+        </div>
+
         {experienceLevel !== "advanced" && (
           <div
             data-tour="copilot-examples"
-            className="space-y-2 border-b border-kipu-border/70 pb-2.5"
+            className="space-y-2 border-t border-kipu-border/70 pt-2.5"
           >
             <div className="flex flex-wrap items-center justify-between gap-1.5">
               <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-200">
-                <Sparkles className="h-3.5 w-3.5 text-kipu-gold" />
-                <span>Ejemplos prácticos para probar tus reglas</span>
+                <Sparkles className="h-3.5 w-3.5 text-zinc-300" />
+                <span>Ejemplos rápidos (cargar en el prompt)</span>
                 <InfoTooltip
                   label="Cómo funcionan los ejemplos"
                   text="Selecciona un ejemplo para cargar la instrucción, ver qué políticas comprobará KipuVault antes de ejecutarla y luego presiona Ejecutar."
@@ -612,154 +781,61 @@ export function KipuCopilot({
                     }`}
                   >
                     <div className="flex items-center justify-between gap-1">
-                      <span className="text-[11px] font-semibold text-kipu-gold">
+                      <span className="text-[11px] font-semibold text-zinc-100">
                         {ex.title}
                       </span>
                     </div>
-                    <p className="mt-1 text-xs leading-snug text-zinc-100">
+                    <p className="mt-1 text-xs leading-snug text-zinc-200">
                       &ldquo;{ex.promptText}&rdquo;
                     </p>
-                    <span className="mt-1 inline-block text-[10px] text-zinc-300">
+                    <span className="mt-1 inline-block text-[10px] text-zinc-400">
                       {ex.badge}
                     </span>
                   </button>
                 );
               })}
             </div>
-
-            {/* Pre-execution check preview */}
-            <div className="rounded-lg border border-zinc-800 bg-kipu-card/80 px-3 py-2 text-[11px] text-zinc-200">
-              <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1 font-semibold text-white">
-                  <ShieldCheck className="h-3.5 w-3.5 text-kipu-emerald" />
-                  Qué comprobará KipuVault antes de ejecutar
-                </span>
-                <span className="font-mono text-[10px] text-zinc-300">
-                  Tope/tx: {sandboxLimitDisplay} · 24h disp.: {sandboxDailyDisplay} · Allowlist: {sandboxAllowedCount}/8 ·{" "}
-                  {effectiveFrozen ? "Congelada" : "Activa"}
-                </span>
-              </div>
-              {selectedExample ? (
-                <div className="space-y-1">
-                  <ul className="list-disc space-y-0.5 pl-4 text-zinc-200">
-                    {selectedExample.checks.map((c) => (
-                      <li key={c}>{c}</li>
-                    ))}
-                  </ul>
-                  <p className="flex items-start gap-1 text-[11px] text-amber-200">
-                    <Info className="mt-0.5 h-3 w-3 shrink-0" />
-                    <span>{selectedExample.expectedNote}</span>
-                  </p>
-                </div>
-              ) : (
-                <p className="text-zinc-300">
-                  Verificará que la bóveda esté activa, que la dirección esté en la allowlist y que el monto no supere tu tope por transacción ni tu límite disponible de 24h.
-                </p>
-              )}
-            </div>
           </div>
         )}
 
-        <div className="grid gap-2 sm:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-300">
-              wallet_demo (Allowlist)
-            </label>
-            <input
-              type="text"
-              value={demoRecipientAddress}
-              onChange={(e) => onChangeDemoRecipient(e.target.value)}
-              placeholder="Pubkey wallet_demo"
-              className="w-full rounded border border-kipu-border bg-kipu-card px-2.5 py-1.5 font-mono text-xs text-zinc-100 placeholder:text-zinc-500"
-            />
+        <details className="rounded-lg border border-kipu-border/70 bg-kipu-card/60 px-2.5 py-1.5">
+          <summary className="cursor-pointer text-[11px] font-medium text-zinc-300 hover:text-white">
+            Direcciones de prueba (wallet_demo y atacante)
+          </summary>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-300">
+                wallet_demo (Allowlist)
+              </label>
+              <input
+                type="text"
+                value={demoRecipientAddress}
+                onChange={(e) => onChangeDemoRecipient(e.target.value)}
+                placeholder="Pubkey wallet_demo"
+                className="w-full rounded border border-kipu-border bg-kipu-card px-2.5 py-1.5 font-mono text-xs text-zinc-100 placeholder:text-zinc-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-300">
+                Wallet atacante (Red-Team B)
+              </label>
+              <input
+                type="text"
+                value={attackerAddress}
+                onChange={(e) => onChangeAttackerAddress(e.target.value)}
+                placeholder="Pubkey fuera de allowlist"
+                className="w-full rounded border border-kipu-border bg-kipu-card px-2.5 py-1.5 font-mono text-xs text-zinc-100 placeholder:text-zinc-500"
+              />
+            </div>
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-300">
-              Wallet atacante (Red-Team B)
-            </label>
-            <input
-              type="text"
-              value={attackerAddress}
-              onChange={(e) => onChangeAttackerAddress(e.target.value)}
-              placeholder="Pubkey fuera de allowlist"
-              className="w-full rounded border border-kipu-border bg-kipu-card px-2.5 py-1.5 font-mono text-xs text-zinc-100 placeholder:text-zinc-500"
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            data-tour="demo-safe"
-            type="button"
-            disabled={
-              sending ||
-              (canRealExecute && (!validDemoRecipient || !hasFunds))
-            }
-            onClick={() => void runDemoSafe()}
-            title={
-              canRealExecute && !hasFunds
-                ? "Deposita Mock USDC antes de probar el pago seguro"
-                : "Prueba un pago válido de 5 Mock USDC hacia wallet_demo"
-            }
-            className="inline-flex items-center gap-1 rounded-md border border-kipu-emerald/50 bg-kipu-emerald/15 px-2.5 py-1.5 text-xs font-medium text-emerald-200 hover:bg-kipu-emerald/25 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/80 disabled:text-zinc-500"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            1. Prueba Segura
-          </button>
-
-          <div
-            data-tour="demo-redteam"
-            className="inline-flex flex-wrap items-center gap-2 rounded-md"
-          >
-            <button
-              type="button"
-              disabled={sending || (canRealExecute && !validDemoRecipient)}
-              onClick={() => void runDemoRedTeamAmount()}
-              title="Simula un LLM comprometido intentando enviar 150 Mock USDC para comprobar el bloqueo del guardrail"
-              className="inline-flex items-center gap-1 rounded-md border border-kipu-crimson/50 bg-kipu-crimson/15 px-2.5 py-1.5 text-xs font-medium text-red-200 hover:bg-kipu-crimson/25 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/80 disabled:text-zinc-500"
-            >
-              <ShieldAlert className="h-3.5 w-3.5" />
-              2. Red-Team A (monto)
-            </button>
-
-            <button
-              type="button"
-              disabled={sending || (canRealExecute && !validAttacker)}
-              onClick={() => void runDemoRedTeamRecipient()}
-              title="Simula un LLM comprometido intentando transferir a una wallet no autorizada para comprobar la allowlist"
-              className="inline-flex items-center gap-1 rounded-md border border-kipu-crimson/50 bg-kipu-crimson/15 px-2.5 py-1.5 text-xs font-medium text-red-200 hover:bg-kipu-crimson/25 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/80 disabled:text-zinc-500"
-            >
-              <AlertTriangle className="h-3.5 w-3.5" />
-              3. Red-Team B (destinatario)
-            </button>
-          </div>
-
-          <button
-            data-tour="demo-freeze"
-            type="button"
-            disabled={freezing || (canRealExecute && !isOwner)}
-            onClick={() => void handleFreezeButton()}
-            className={
-              effectiveFrozen
-                ? "ml-auto inline-flex items-center gap-1.5 rounded-md border border-kipu-emerald/60 bg-kipu-emerald/20 px-3 py-1.5 text-xs font-semibold text-emerald-200 hover:bg-kipu-emerald/30 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/80 disabled:text-zinc-500"
-                : "ml-auto inline-flex items-center gap-1.5 rounded-md border border-amber-500/60 bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-200 hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/80 disabled:text-zinc-500"
-            }
-          >
-            <Snowflake className="h-3.5 w-3.5" />
-            {freezing
-              ? "Firmando..."
-              : effectiveFrozen
-                ? "4. Descongelar"
-                : "4. Congelar"}
-          </button>
-        </div>
+        </details>
       </div>
 
       {/* Chat feed */}
-      <div className="mb-2.5 flex-1 space-y-2.5 overflow-y-auto rounded-lg border border-kipu-border bg-kipu-bg p-3 min-h-[230px] max-h-[340px]">
+      <div className="mb-2.5 flex-1 space-y-2.5 overflow-y-auto rounded-lg border border-kipu-border bg-kipu-bg p-3 min-h-[200px] max-h-[300px]">
         {visibleMessages.length === 0 ? (
-          <div className="flex h-full min-h-[240px] flex-col items-center justify-center text-center text-xs text-zinc-200">
-            <Bot className="mb-2 h-7 w-7 text-kipu-gold/70" />
+          <div className="flex h-full min-h-[190px] flex-col items-center justify-center text-center text-xs text-zinc-200">
+            <Bot className="mb-2 h-6 w-6 text-zinc-400" />
             <p className="max-w-md">
               {canRealExecute
                 ? "Envía una orden de pago en lenguaje natural, elige un ejemplo o usa los botones 1 → 4."
@@ -769,7 +845,9 @@ export function KipuCopilot({
         ) : (
           visibleMessages.map((msg) => {
             const r = msg.result;
+            const isFreezeMsg = r?.error_name === "VaultFrozen";
             const isBlocked =
+              !isFreezeMsg &&
               r &&
               (r.status === "BLOCKED_ONCHAIN" ||
                 r.status === "BLOCKED_PREFLIGHT");
@@ -780,13 +858,20 @@ export function KipuCopilot({
                 className={`rounded-lg p-3 text-xs ${
                   msg.role === "user"
                     ? "ml-8 border border-kipu-border bg-kipu-card text-zinc-100"
-                    : isBlocked
-                      ? "mr-4 border border-kipu-crimson bg-kipu-crimson/10 text-red-100"
-                      : r?.status === "EXECUTED"
-                        ? "mr-4 border border-kipu-emerald/50 bg-kipu-emerald/10 text-emerald-100"
-                        : "mr-4 border border-kipu-gold/50 bg-kipu-gold/10 text-amber-100"
+                    : isFreezeMsg
+                      ? "mr-4 border border-sky-400/70 bg-sky-500/15 text-sky-100"
+                      : isBlocked
+                        ? "mr-4 border border-kipu-crimson bg-kipu-crimson/10 text-red-100"
+                        : r?.status === "EXECUTED"
+                          ? "mr-4 border border-kipu-emerald/50 bg-kipu-emerald/10 text-emerald-100"
+                          : "mr-4 border border-zinc-700 bg-kipu-card text-zinc-100"
                 }`}
               >
+                {isFreezeMsg && r && (
+                  <p className="mb-1.5 font-semibold text-sky-200">
+                    EMERGENCY FREEZE ACTIVO: agente detenido ({r.error_name})
+                  </p>
+                )}
                 {isBlocked && (
                   <p className="mb-1.5 font-semibold text-kipu-crimson">
                     {msg.isSandbox

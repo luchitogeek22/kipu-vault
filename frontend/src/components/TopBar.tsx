@@ -177,13 +177,13 @@ export function TopBar({
               <span
                 className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold ${
                   vault.isFrozen
-                    ? "bg-kipu-crimson/15 text-red-300"
+                    ? "bg-sky-500/15 text-sky-200"
                     : "bg-kipu-emerald/15 text-kipu-emerald"
                 }`}
               >
                 <span
                   className={`h-2 w-2 rounded-full ${
-                    vault.isFrozen ? "bg-kipu-crimson" : "bg-kipu-emerald"
+                    vault.isFrozen ? "bg-sky-400" : "bg-kipu-emerald"
                   }`}
                 />
                 {vault.isFrozen ? "Congelada" : "Activa"}
@@ -197,7 +197,7 @@ export function TopBar({
                 className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
                   vault.isFrozen
                     ? "border-kipu-emerald/60 bg-kipu-emerald/15 text-kipu-emerald hover:bg-kipu-emerald/25"
-                    : "border-kipu-crimson/60 bg-kipu-crimson/15 text-red-200 hover:bg-kipu-crimson/25"
+                    : "border-sky-400/60 bg-sky-500/15 text-sky-200 hover:bg-sky-500/25"
                 } disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/70 disabled:text-zinc-500`}
               >
                 {vault.isFrozen ? (
@@ -207,7 +207,7 @@ export function TopBar({
                   </>
                 ) : (
                   <>
-                    <ShieldAlert className="h-3.5 w-3.5" />
+                    <Snowflake className="h-3.5 w-3.5 text-sky-300" />
                     {freezing ? "Procesando..." : "Congelar"}
                   </>
                 )}
@@ -219,9 +219,9 @@ export function TopBar({
             <button
               type="button"
               onClick={onOpenWizard}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-kipu-border bg-kipu-bg px-2.5 py-2 text-xs font-medium text-zinc-200 transition hover:border-kipu-gold/60 hover:text-kipu-gold"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-kipu-border bg-kipu-bg px-2.5 py-2 text-xs font-medium text-zinc-200 transition hover:border-zinc-500 hover:text-white"
             >
-              <Wrench className="h-3.5 w-3.5 text-kipu-gold" />
+              <Wrench className="h-3.5 w-3.5 text-zinc-300" />
               <span className="hidden sm:inline">Asistente</span>
             </button>
           )}
