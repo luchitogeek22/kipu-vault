@@ -5,7 +5,6 @@ import dynamic from "next/dynamic";
 import {
   HelpCircle,
   KeyRound,
-  ShieldAlert,
   ShieldCheck,
   SlidersHorizontal,
   Snowflake,
