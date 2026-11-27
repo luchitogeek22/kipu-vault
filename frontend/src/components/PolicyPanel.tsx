@@ -4,11 +4,13 @@ import React, { useEffect, useState } from "react";
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
+  Lock,
   Plus,
   RefreshCw,
   Settings2,
   Shield,
   SlidersHorizontal,
+  Snowflake,
   Trash2,
   Users,
   Wallet,
@@ -48,6 +50,8 @@ interface PolicyPanelProps {
   onAddRecipient: (recipient: string) => Promise<void>;
   onRemoveRecipient: (recipient: string) => Promise<void>;
   busyAction: string | null;
+  freezing?: boolean;
+  onToggleFreeze?: () => Promise<void>;
   experienceLevel: ExperienceLevel;
 }
 
@@ -66,6 +70,8 @@ export function PolicyPanel({
   onAddRecipient,
   onRemoveRecipient,
   busyAction,
+  freezing = false,
+  onToggleFreeze,
   experienceLevel,
 }: PolicyPanelProps) {
   const [initAgent, setInitAgent] = useState(defaultAgentPubkey);
@@ -172,10 +178,15 @@ export function PolicyPanel({
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Shield className="h-4 w-4 text-zinc-300" />
-          <h2 className="text-sm font-semibold text-zinc-100">
-            Configuración de bóveda
-          </h2>
+          <Shield className="h-4 w-4 text-kipu-gold" />
+          <div>
+            <h2 className="font-display text-sm font-semibold text-white">
+              Vault Protection Center
+            </h2>
+            <p className="text-[11px] text-zinc-400">
+              Reglas On-Chain · Configuración de bóveda
+            </p>
+          </div>
           {experienceLevel !== "advanced" && (
             <InfoTooltip text="Configuración guardada en el contrato de Solana. Ni la IA ni el servidor pueden saltársela." />
           )}
@@ -314,7 +325,21 @@ export function PolicyPanel({
               }`}
             >
               <SlidersHorizontal className="h-3 w-3" />
-              Políticas
+              Límites & Freeze
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "allowlist"}
+              onClick={() => setActiveTab("allowlist")}
+              className={`inline-flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition ${
+                activeTab === "allowlist"
+                  ? "bg-kipu-card text-white shadow"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              <Users className="h-3 w-3" />
+              Destinos ({vault.recipientCount})
             </button>
             <button
               type="button"
@@ -330,36 +355,23 @@ export function PolicyPanel({
               <Wallet className="h-3 w-3" />
               Fondos
             </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "allowlist"}
-              onClick={() => setActiveTab("allowlist")}
-              className={`inline-flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition ${
-                activeTab === "allowlist"
-                  ? "bg-kipu-card text-white shadow"
-                  : "text-zinc-400 hover:text-zinc-200"
-              }`}
-            >
-              <Users className="h-3 w-3" />
-              Allowlist ({vault.recipientCount})
-            </button>
           </div>
 
           {activeTab === "rules" && (
             <div className="space-y-2.5">
-              <div className="space-y-2 rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
+              {/* Transaction Limits + Daily Spending Limits */}
+              <div className="space-y-2.5 rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
                 <div>
                   <div className="mb-1 flex justify-between text-xs">
-                    <span className="inline-flex items-center gap-1 text-zinc-300">
-                      Ventana 24h (fija) / Límite diario
+                    <span className="inline-flex items-center gap-1 font-medium text-zinc-200">
+                      Daily Spending Limits (24h)
                       {experienceLevel === "beginner" && (
                         <InfoTooltip text="Gasto acumulado en las últimas 24h frente al máximo diario permitido." />
                       )}
                     </span>
                     <span className="font-mono text-zinc-100">
                       {formatBaseUnitsAsUsdc(vault.spentToday, 2)} /{" "}
-                      {formatBaseUnitsAsUsdc(vault.dailyLimit, 2)} Mock USDC
+                      {formatBaseUnitsAsUsdc(vault.dailyLimit, 2)}
                     </span>
                   </div>
                   <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
@@ -374,8 +386,8 @@ export function PolicyPanel({
 
                 <div>
                   <div className="mb-1 flex justify-between text-xs">
-                    <span className="inline-flex items-center gap-1 text-zinc-300">
-                      Tope por transacción
+                    <span className="inline-flex items-center gap-1 font-medium text-zinc-200">
+                      Transaction Limits (máx/tx)
                       {experienceLevel === "beginner" && (
                         <InfoTooltip text="Monto máximo que el agente puede transferir en una sola operación." />
                       )}
@@ -391,31 +403,74 @@ export function PolicyPanel({
                     />
                   </div>
                 </div>
+              </div>
 
-                <div className="grid grid-cols-2 gap-2 pt-0.5 text-xs">
-                  <div className="rounded border border-kipu-border bg-kipu-card px-2 py-1">
-                    <span className="block text-zinc-400">Estado</span>
-                    <span
-                      className={`font-semibold ${
-                        vault.isFrozen ? "text-sky-300" : "text-kipu-emerald"
-                      }`}
-                    >
-                      {vault.isFrozen ? "Congelada (Freeze)" : "Activa"}
-                    </span>
-                  </div>
-                  <div className="rounded border border-kipu-border bg-kipu-card px-2 py-1">
-                    <span className="block text-zinc-400">Ejecuciones</span>
-                    <span className="font-mono font-semibold text-zinc-100">
-                      {vault.totalExecutions.toString()}
-                    </span>
-                  </div>
+              {/* Agent Permissions */}
+              <div className="rounded-lg border border-kipu-border bg-kipu-bg p-2.5 text-xs">
+                <div className="mb-1.5 flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1.5 font-medium text-zinc-200">
+                    <Lock className="h-3.5 w-3.5 text-zinc-300" />
+                    Agent Permissions
+                  </span>
+                  <span className="font-mono text-[11px] text-zinc-300">
+                    {vault.totalExecutions.toString()} ejecuciones
+                  </span>
                 </div>
-
-                <div className="text-xs text-zinc-300">
-                  Agente:{" "}
+                <p className="text-[11px] text-zinc-300">
+                  Agente autorizado:{" "}
                   <span className="font-mono text-zinc-100">
                     {truncateMiddle(vault.agent, 6, 6)}
                   </span>
+                </p>
+                <p className="mt-1 text-[11px] text-zinc-400">
+                  Solo puede ejecutar pagos dentro de topes y hacia Authorized
+                  Destinations. No puede retirar ni modificar reglas.
+                </p>
+              </div>
+
+              {/* Emergency Freeze Control */}
+              <div
+                className={`rounded-lg border p-2.5 text-xs ${
+                  vault.isFrozen
+                    ? "border-sky-400/60 bg-sky-500/15"
+                    : "border-kipu-border bg-kipu-bg"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <span className="inline-flex items-center gap-1.5 font-semibold text-white">
+                      <Snowflake className="h-3.5 w-3.5 text-sky-300" />
+                      Emergency Freeze
+                    </span>
+                    <p className="mt-0.5 text-[11px] text-zinc-300">
+                      Estado:{" "}
+                      <strong
+                        className={
+                          vault.isFrozen ? "text-sky-200" : "text-kipu-emerald"
+                        }
+                      >
+                        {vault.isFrozen ? "Congelada (Freeze)" : "Activa"}
+                      </strong>
+                    </p>
+                  </div>
+                  {onToggleFreeze && (
+                    <button
+                      type="button"
+                      disabled={!isOwner || freezing}
+                      onClick={() => void onToggleFreeze()}
+                      className={`rounded-md border px-2.5 py-1.5 text-xs font-semibold transition ${
+                        vault.isFrozen
+                          ? "border-kipu-emerald/60 bg-kipu-emerald/20 text-emerald-100 hover:bg-kipu-emerald/30"
+                          : "border-sky-400/70 bg-sky-500/20 text-sky-100 hover:bg-sky-500/30"
+                      } disabled:cursor-not-allowed disabled:opacity-40`}
+                    >
+                      {freezing
+                        ? "Firmando..."
+                        : vault.isFrozen
+                          ? "Descongelar"
+                          : "Congelar"}
+                    </button>
+                  )}
                 </div>
               </div>
 

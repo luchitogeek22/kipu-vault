@@ -87,36 +87,47 @@ export function TopBar({
   );
 
   return (
-    <header className="border-b border-kipu-border bg-kipu-card/90 backdrop-blur">
+    <header className="border-b border-kipu-border bg-kipu-card/95 shadow-lg shadow-black/20 backdrop-blur">
       <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-kipu-gold/40 bg-kipu-gold/10 text-kipu-gold">
-            <svg
-              viewBox="0 0 24 24"
-              className="h-6 w-6"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-            >
-              <path d="M4 6h16" strokeLinecap="round" />
-              <path d="M8 6v11M12 6v13M16 6v9" strokeLinecap="round" />
-              <circle cx="8" cy="11" r="1.4" fill="currentColor" />
-              <circle cx="12" cy="14" r="1.4" fill="currentColor" />
-              <circle cx="16" cy="10" r="1.4" fill="currentColor" />
-            </svg>
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-kipu-gold/40 bg-kipu-gold/10 text-kipu-gold">
+            <ShieldCheck className="h-5 w-5" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-semibold tracking-tight text-zinc-100">
-                KipuVault
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="font-display text-lg font-bold tracking-tight text-white">
+                kipuvault<span className="text-kipu-gold">.</span>
               </h1>
-              <span className="inline-flex items-center gap-1 rounded-full border border-kipu-gold/40 bg-kipu-gold/10 px-2 py-0.5 font-mono text-[11px] font-medium text-kipu-gold">
-                <span className="h-1.5 w-1.5 rounded-full bg-kipu-gold" />
-                Devnet
+              <span className="inline-flex items-center gap-1 rounded-full border border-zinc-700 bg-kipu-bg px-2 py-0.5 font-mono text-[11px] font-medium text-zinc-200">
+                <span className="h-1.5 w-1.5 rounded-full bg-kipu-emerald" />
+                Solana Devnet
+              </span>
+              <span
+                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                  !vault
+                    ? "border-zinc-700 bg-kipu-bg text-zinc-300"
+                    : vault.isFrozen
+                      ? "border-sky-400/60 bg-sky-500/15 text-sky-200"
+                      : "border-kipu-emerald/50 bg-kipu-emerald/15 text-kipu-emerald"
+                }`}
+              >
+                {vault?.isFrozen ? (
+                  <>
+                    <Snowflake className="h-3 w-3 text-sky-300" />
+                    Freeze Activo
+                  </>
+                ) : vault ? (
+                  <>
+                    <span className="h-1.5 w-1.5 rounded-full bg-kipu-emerald" />
+                    Protegida
+                  </>
+                ) : (
+                  "Sandbox Demo"
+                )}
               </span>
             </div>
-            <p className="text-xs text-zinc-300">
-              Guardrails on-chain en Solana · Limita el radio de daño del agente
+            <p className="text-[11px] text-zinc-300">
+              Web3 AI Security Vault · Guardrails On-Chain
             </p>
           </div>
         </div>
@@ -125,7 +136,7 @@ export function TopBar({
           <div
             data-tour="agent-sol"
             title="Saldo SOL del agente operativo para cubrir comisiones de transacción en Solana Devnet"
-            className={`rounded-lg border px-3 py-1.5 font-mono text-xs ${
+            className={`rounded-lg border px-2.5 py-1.5 font-mono text-xs ${
               lowSolWarning
                 ? "border-kipu-crimson/60 bg-kipu-crimson/10 text-kipu-crimson"
                 : "border-kipu-border bg-kipu-bg text-zinc-200"
@@ -135,18 +146,20 @@ export function TopBar({
             {agentSolBalance !== null
               ? Number(agentSolBalance).toFixed(3)
               : "—"}
-            {lowSolWarning ? " (¡Recargar Devnet SOL!)" : ""}
+            {lowSolWarning ? " (!)" : ""}
           </div>
 
-          <div className="rounded-lg border border-kipu-border bg-kipu-bg px-3 py-1.5">
-            <span className="block text-[11px] uppercase tracking-wider text-zinc-300">
-              Balance de la bóveda
-            </span>
-            <span className="font-mono text-sm font-semibold text-zinc-100">
-              {vault ? formatBaseUnitsAsUsdc(vault.vaultTokenBalance, 2) : "0.00"}{" "}
-              <span className="text-kipu-gold">Mock USDC</span>
-            </span>
-          </div>
+          {vault && (
+            <div className="hidden rounded-lg border border-kipu-border bg-kipu-bg px-2.5 py-1 sm:block">
+              <span className="block text-[10px] uppercase tracking-wider text-zinc-400">
+                Vault Balance
+              </span>
+              <span className="font-mono text-xs font-semibold text-zinc-100">
+                {formatBaseUnitsAsUsdc(vault.vaultTokenBalance, 2)}{" "}
+                <span className="text-zinc-300">Mock USDC</span>
+              </span>
+            </div>
+          )}
 
           <button
             type="button"
@@ -161,7 +174,7 @@ export function TopBar({
             {isAuthenticated ? (
               <>
                 <ShieldCheck className="h-4 w-4" />
-                Sesión SIWS activa
+                Sesión SIWS
               </>
             ) : (
               <>
@@ -172,46 +185,24 @@ export function TopBar({
           </button>
 
           {vault && (
-            <div className="inline-flex items-center gap-1.5 rounded-lg border border-kipu-border bg-kipu-bg p-1">
-              <span
-                className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold ${
-                  vault.isFrozen
-                    ? "bg-sky-500/15 text-sky-200"
-                    : "bg-kipu-emerald/15 text-kipu-emerald"
-                }`}
-              >
-                <span
-                  className={`h-2 w-2 rounded-full ${
-                    vault.isFrozen ? "bg-sky-400" : "bg-kipu-emerald"
-                  }`}
-                />
-                {vault.isFrozen ? "Congelada" : "Activa"}
-              </span>
-
-              <button
-                type="button"
-                disabled={!isOwner || freezing}
-                onClick={() => void onToggleFreeze()}
-                title="Emergency Freeze: bloquea únicamente al agente; el owner siempre puede retirar fondos"
-                className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
-                  vault.isFrozen
-                    ? "border-kipu-emerald/60 bg-kipu-emerald/15 text-kipu-emerald hover:bg-kipu-emerald/25"
-                    : "border-sky-400/60 bg-sky-500/15 text-sky-200 hover:bg-sky-500/25"
-                } disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/70 disabled:text-zinc-500`}
-              >
-                {vault.isFrozen ? (
-                  <>
-                    <Snowflake className="h-3.5 w-3.5" />
-                    {freezing ? "Procesando..." : "Descongelar"}
-                  </>
-                ) : (
-                  <>
-                    <Snowflake className="h-3.5 w-3.5 text-sky-300" />
-                    {freezing ? "Procesando..." : "Congelar"}
-                  </>
-                )}
-              </button>
-            </div>
+            <button
+              type="button"
+              disabled={!isOwner || freezing}
+              onClick={() => void onToggleFreeze()}
+              title="Emergency Freeze: detiene únicamente al agente on-chain; tus fondos siguen bajo tu control"
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-semibold transition ${
+                vault.isFrozen
+                  ? "border-kipu-emerald/60 bg-kipu-emerald/15 text-kipu-emerald hover:bg-kipu-emerald/25"
+                  : "border-sky-400/60 bg-sky-500/15 text-sky-200 hover:bg-sky-500/25"
+              } disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/70 disabled:text-zinc-500`}
+            >
+              <Snowflake className="h-3.5 w-3.5 text-sky-300" />
+              {freezing
+                ? "Procesando..."
+                : vault.isFrozen
+                  ? "Descongelar"
+                  : "Congelar"}
+            </button>
           )}
 
           {showWizardButton && (

@@ -710,12 +710,6 @@ export function KipuDashboard() {
               dailyRemainingDisplay={dailyRemainingDisplay}
               allowedCount={vault?.recipientCount ?? 0}
             />
-
-            <AuditLedger
-              entries={auditEntries}
-              onVerifyTx={(sig) => verifyAuditTx(sig)}
-              experienceLevel={experienceLevel}
-            />
           </div>
 
           <div className="lg:col-span-4">
@@ -734,10 +728,20 @@ export function KipuDashboard() {
               onAddRecipient={handleAddRecipient}
               onRemoveRecipient={handleRemoveRecipient}
               busyAction={busyAction}
+              freezing={freezing}
+              onToggleFreeze={handleToggleFreeze}
               experienceLevel={experienceLevel}
             />
           </div>
         </div>
+
+        <AuditLedger
+          entries={auditEntries}
+          onVerifyTx={(sig) => verifyAuditTx(sig)}
+          experienceLevel={experienceLevel}
+          isFrozen={Boolean(vault?.isFrozen)}
+          isAuthenticated={Boolean(jwtToken)}
+        />
       </main>
 
       <ProductTour

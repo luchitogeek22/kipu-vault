@@ -11,7 +11,7 @@ const config: Config = {
       colors: {
         kipu: {
           bg: "#09090B",
-          card: "#18181B",
+          card: "#151518",
           border: "#27272A",
           gold: "#F59E0B",
           emerald: "#10B981",

@@ -670,6 +670,28 @@ export function KipuCopilot({
                   ? flowR.explanation_es
                   : "Presiona 1, 2, 3 o 4 para comprobar."}
             </p>
+            {flowR && (
+              <div className="mt-2">
+                <div className="mb-0.5 flex items-center justify-between font-mono text-[10px]">
+                  <span>Riesgo evaluado</span>
+                  <span>{flowR.risk_score}/100</span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/35">
+                  <div
+                    className={`h-full transition-all duration-300 ${
+                      flowR.risk_score >= 70
+                        ? "bg-kipu-crimson"
+                        : flowR.risk_score >= 35
+                          ? "bg-kipu-gold"
+                          : "bg-kipu-emerald"
+                    }`}
+                    style={{
+                      width: `${Math.max(4, Math.min(100, flowR.risk_score))}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
