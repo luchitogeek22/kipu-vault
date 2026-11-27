@@ -123,20 +123,21 @@ export function TopBar({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {agentSolBalance !== null && (
-            <div
-              data-tour="agent-sol"
-              title="Saldo SOL del agente operativo para cubrir comisiones de transacción en Solana Devnet"
-              className={`rounded-lg border px-3 py-1.5 font-mono text-xs ${
-                lowSolWarning
-                  ? "border-kipu-crimson/60 bg-kipu-crimson/10 text-kipu-crimson"
-                  : "border-kipu-border bg-kipu-bg text-zinc-200"
-              }`}
-            >
-              Agente SOL: {Number(agentSolBalance).toFixed(3)}
-              {lowSolWarning ? " (¡Recargar Devnet SOL!)" : ""}
-            </div>
-          )}
+          <div
+            data-tour="agent-sol"
+            title="Saldo SOL del agente operativo para cubrir comisiones de transacción en Solana Devnet"
+            className={`rounded-lg border px-3 py-1.5 font-mono text-xs ${
+              lowSolWarning
+                ? "border-kipu-crimson/60 bg-kipu-crimson/10 text-kipu-crimson"
+                : "border-kipu-border bg-kipu-bg text-zinc-200"
+            }`}
+          >
+            Agente SOL:{" "}
+            {agentSolBalance !== null
+              ? Number(agentSolBalance).toFixed(3)
+              : "—"}
+            {lowSolWarning ? " (¡Recargar Devnet SOL!)" : ""}
+          </div>
 
           <div className="rounded-lg border border-kipu-border bg-kipu-bg px-3 py-1.5">
             <span className="block text-[11px] uppercase tracking-wider text-zinc-300">

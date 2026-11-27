@@ -75,11 +75,14 @@ export function ProductTour({
       el.scrollIntoView({ behavior: "smooth", block: "center" });
     }
 
-    const timer = setTimeout(updateTarget, 180);
+    updateTarget();
+    const timer1 = setTimeout(updateTarget, 180);
+    const timer2 = setTimeout(updateTarget, 420);
     window.addEventListener("resize", updateTarget);
     window.addEventListener("scroll", updateTarget, true);
     return () => {
-      clearTimeout(timer);
+      clearTimeout(timer1);
+      clearTimeout(timer2);
       window.removeEventListener("resize", updateTarget);
       window.removeEventListener("scroll", updateTarget, true);
     };
