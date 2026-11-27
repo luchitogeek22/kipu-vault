@@ -127,6 +127,50 @@ async def test_meta_llm_client_falls_back_to_chat_completions_on_404() -> None:
 
 
 @pytest.mark.asyncio
+async def test_meta_llm_client_auto_discovers_available_model_on_404() -> None:
+    demo_recipient = "3kx3s1viSB9p5bZt3wDiyaiVZ5j7uNCA488PMEdWgVpN"
+    seen_models: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/models"):
+            return httpx.Response(
+                200,
+                json={"data": [{"id": "muse-spark-1.2"}, {"id": "muse-spark-1.1"}]},
+            )
+        body = json.loads(request.content.decode("utf-8"))
+        seen_models.append(body["model"])
+        if body["model"] == "muse-ember-1.0":
+            return httpx.Response(404, json={"error": {"code": "model_not_found"}})
+        return httpx.Response(
+            200,
+            json={
+                "output_text": json.dumps(
+                    {
+                        "action": "transfer",
+                        "recipient_address": demo_recipient,
+                        "amount_usdc": "5.000000",
+                        "reasoning": "OK",
+                        "risk_score": 5,
+                        "risk_flags": [],
+                    }
+                )
+            },
+        )
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as http_client:
+        client = MetaLLMClient(
+            api_key="meta-test-secret",
+            model="muse-ember-1.0",
+            http_client=http_client,
+        )
+        intent = await client.parse_intent("Paga 5 USDC")
+
+    assert intent.action == "transfer"
+    assert "muse-spark-1.2" in seen_models
+
+
+@pytest.mark.asyncio
 async def test_meta_llm_client_retries_once_on_invalid_json() -> None:
     attempts = 0
 

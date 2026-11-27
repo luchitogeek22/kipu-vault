@@ -319,39 +319,77 @@ class MetaLLMClient(LLMClient):
     ) -> httpx.Response:
         return await client.post(url, headers=headers, json=payload, timeout=25.0)
 
+    async def _discover_fallback_model(
+        self, client: httpx.AsyncClient, headers: dict[str, str]
+    ) -> tuple[str | None, list[str]]:
+        try:
+            resp = await client.get(f"{self.base_url}/models", headers=headers, timeout=10.0)
+            if resp.is_error:
+                return None, []
+            payload = resp.json()
+            raw_items = payload.get("data", []) if isinstance(payload, dict) else []
+            available = [
+                str(item["id"])
+                for item in raw_items
+                if isinstance(item, dict) and isinstance(item.get("id"), str)
+            ]
+            for preferred in (
+                "muse-ember-1.0",
+                "muse-spark-1.2",
+                "muse-spark-1.1",
+                "muse-spark-1.3",
+            ):
+                if preferred in available and preferred != self.model:
+                    return preferred, available
+            for candidate in available:
+                if candidate != self.model and any(
+                    tag in candidate.lower() for tag in ("muse", "llama")
+                ):
+                    return candidate, available
+            for candidate in available:
+                if candidate != self.model:
+                    return candidate, available
+            return None, available
+        except Exception:
+            return None, []
+
     async def _call_once(self, prompt: str) -> ParsedIntent:
         if not self.api_key:
             raise LLMParseError("META_API_KEY is not configured")
 
-        responses_payload = {
-            "model": self.model,
-            "instructions": SYSTEM_PROMPT,
-            "input": f"UNTRUSTED_USER_PROMPT:\n{prompt}",
-            "text": {
-                "format": {
-                    "type": "json_schema",
-                    "name": "emit_payment_intent",
-                    "strict": True,
-                    "schema": _META_INTENT_JSON_SCHEMA,
-                }
-            },
-        }
-        chat_payload = {
-            "model": self.model,
-            "temperature": 0,
-            "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"UNTRUSTED_USER_PROMPT:\n{prompt}"},
-            ],
-            "response_format": {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "emit_payment_intent",
-                    "strict": True,
-                    "schema": _META_INTENT_JSON_SCHEMA,
+        def _build_responses_payload(model_id: str) -> dict[str, Any]:
+            return {
+                "model": model_id,
+                "instructions": SYSTEM_PROMPT,
+                "input": f"UNTRUSTED_USER_PROMPT:\n{prompt}",
+                "text": {
+                    "format": {
+                        "type": "json_schema",
+                        "name": "emit_payment_intent",
+                        "strict": True,
+                        "schema": _META_INTENT_JSON_SCHEMA,
+                    }
                 },
-            },
-        }
+            }
+
+        def _build_chat_payload(model_id: str) -> dict[str, Any]:
+            return {
+                "model": model_id,
+                "temperature": 0,
+                "messages": [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": f"UNTRUSTED_USER_PROMPT:\n{prompt}"},
+                ],
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "emit_payment_intent",
+                        "strict": True,
+                        "schema": _META_INTENT_JSON_SCHEMA,
+                    },
+                },
+            }
+
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -359,18 +397,50 @@ class MetaLLMClient(LLMClient):
 
         async def _execute(client: httpx.AsyncClient) -> tuple[bool, dict[str, Any]]:
             resp = await self._post_json(
-                client, f"{self.base_url}/responses", headers, responses_payload
+                client,
+                f"{self.base_url}/responses",
+                headers,
+                _build_responses_payload(self.model),
             )
             used_responses = True
+            available_models: list[str] | None = None
             if resp.status_code in (404, 405):
                 used_responses = False
                 resp = await self._post_json(
-                    client, f"{self.base_url}/chat/completions", headers, chat_payload
+                    client,
+                    f"{self.base_url}/chat/completions",
+                    headers,
+                    _build_chat_payload(self.model),
                 )
+            if resp.status_code == 404:
+                fallback_model, available_models = await self._discover_fallback_model(
+                    client, headers
+                )
+                if fallback_model:
+                    used_responses = True
+                    resp = await self._post_json(
+                        client,
+                        f"{self.base_url}/responses",
+                        headers,
+                        _build_responses_payload(fallback_model),
+                    )
+                    if resp.status_code in (404, 405):
+                        used_responses = False
+                        resp = await self._post_json(
+                            client,
+                            f"{self.base_url}/chat/completions",
+                            headers,
+                            _build_chat_payload(fallback_model),
+                        )
             if resp.is_error:
+                extra = (
+                    f" | /v1/models={available_models}"
+                    if available_models is not None
+                    else ""
+                )
                 raise LLMParseError(
                     f"Meta API HTTP {resp.status_code} ({resp.request.url.path}): "
-                    f"{resp.text[:300]}"
+                    f"{resp.text[:250]}{extra}"
                 )
             data = resp.json()
             if not isinstance(data, dict):
