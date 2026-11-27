@@ -90,6 +90,29 @@ export function ProductTour({
 
   if (!open) return null;
 
+  const viewportW =
+    typeof window !== "undefined" ? window.innerWidth : 1280;
+  const viewportH =
+    typeof window !== "undefined" ? window.innerHeight : 800;
+  const isDesktop = viewportW >= 640;
+
+  let cardStyle: React.CSSProperties | undefined;
+  if (rect && isDesktop) {
+    const cardWidth = Math.min(400, viewportW - 32);
+    const estCardHeight = 225;
+    const spaceBelow = viewportH - (rect.top + rect.height) - 16;
+    const spaceAbove = rect.top - 16;
+    const top =
+      spaceBelow >= estCardHeight || spaceBelow >= spaceAbove
+        ? Math.min(rect.top + rect.height + 12, viewportH - estCardHeight - 12)
+        : Math.max(12, rect.top - estCardHeight - 12);
+    const left = Math.min(
+      Math.max(16, rect.left),
+      viewportW - cardWidth - 16
+    );
+    cardStyle = { top, left, width: cardWidth };
+  }
+
   return (
     <div
       role="dialog"
@@ -98,7 +121,9 @@ export function ProductTour({
       className="fixed inset-0 z-50 pointer-events-auto"
     >
       <div
-        className="fixed inset-0 bg-black/65 transition-opacity"
+        className={`fixed inset-0 transition-opacity ${
+          rect ? "bg-transparent" : "bg-black/25"
+        }`}
         onClick={() => onClose(false)}
       />
 
@@ -111,32 +136,39 @@ export function ProductTour({
             width: rect.width + 8,
             height: rect.height + 8,
           }}
-          className="pointer-events-none fixed z-50 rounded-xl border-2 border-kipu-gold shadow-[0_0_0_9999px_rgba(9,9,11,0.55)] transition-all duration-200"
+          className="pointer-events-none fixed z-50 rounded-xl border-2 border-kipu-gold shadow-[0_0_0_9999px_rgba(9,9,11,0.28)] transition-all duration-200"
         />
       )}
 
-      <div className="fixed bottom-4 left-4 right-4 z-[60] mx-auto max-w-md rounded-2xl border border-kipu-gold/60 bg-kipu-card p-5 shadow-2xl sm:left-auto sm:right-6 sm:bottom-6">
+      <div
+        style={cardStyle}
+        className={`fixed z-[60] rounded-2xl border border-kipu-gold/70 bg-kipu-card p-4 shadow-2xl transition-all duration-200 sm:p-5 ${
+          !cardStyle
+            ? "bottom-3 left-3 right-3 mx-auto max-w-md sm:bottom-6 sm:left-auto sm:right-6"
+            : ""
+        }`}
+      >
         <div className="mb-2 flex items-center justify-between">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-kipu-gold/15 px-2.5 py-0.5 text-[11px] font-semibold text-kipu-gold">
-            <Compass className="h-3.5 w-3.5" />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-kipu-gold/20 px-2.5 py-0.5 text-[11px] font-semibold text-amber-200">
+            <Compass className="h-3.5 w-3.5 text-kipu-gold" />
             Recorrido guiado · {stepIndex + 1} de {PRODUCT_TOUR_STEPS.length}
           </span>
           <button
             type="button"
             onClick={() => onClose(false)}
             aria-label="Cerrar recorrido"
-            className="rounded p-1 text-zinc-400 hover:text-zinc-100"
+            className="rounded p-1 text-zinc-200 hover:bg-zinc-800 hover:text-white"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <h3 className="text-sm font-bold text-white">{step.title}</h3>
-        <p className="mt-1.5 text-xs leading-relaxed text-zinc-200">
+        <p className="mt-1.5 text-xs leading-relaxed text-zinc-100">
           {step.description}
         </p>
 
-        <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-zinc-400">
+        <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-zinc-200">
           <input
             type="checkbox"
             checked={neverShowAuto}
@@ -150,7 +182,7 @@ export function ProductTour({
           <button
             type="button"
             onClick={() => onClose(false)}
-            className="text-xs text-zinc-400 hover:text-zinc-100"
+            className="rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-100 transition hover:border-kipu-gold hover:text-kipu-gold"
           >
             Saltar tutorial
           </button>

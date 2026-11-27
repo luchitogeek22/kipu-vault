@@ -80,46 +80,32 @@ export interface TourStepDef {
 
 export const PRODUCT_TOUR_STEPS: TourStepDef[] = [
   {
-    id: "vault",
-    target: "vault-summary",
-    title: "1. BÓVEDA",
+    id: "copilot-examples",
+    target: "copilot-examples",
+    title: "1. VERIFICACIÓN ANTES DE EJECUTAR",
     description:
-      "Este es tu centro de control. Aquí puedes consultar el saldo y el estado de protección.",
+      "Tu agente de IA propone pagos. KipuVault los verifica en Solana antes de ejecutarlos.",
   },
   {
-    id: "policies",
-    target: "policies",
-    title: "2. POLÍTICAS ON-CHAIN",
+    id: "demo-safe",
+    target: "demo-safe",
+    title: "2. PRUEBA SEGURA",
     description:
-      "Aquí defines las reglas que limitan las operaciones de tu agente.",
+      "Prueba una operación válida: 5 USDC a una wallet autorizada.",
   },
   {
-    id: "agent-sol",
-    target: "agent-sol",
-    title: "3. AGENTE SOL",
+    id: "demo-redteam",
+    target: "demo-redteam",
+    title: "3. SIMULA UN AGENTE HACKEADO",
     description:
-      "Consulta el agente autorizado y sus límites operativos.",
+      "Ahora simula un agente hackeado: 150 USDC o una wallet desconocida. Mira cómo se bloquea.",
   },
   {
-    id: "allowlist",
-    target: "allowlist",
-    title: "4. ALLOWLIST",
+    id: "demo-freeze",
+    target: "demo-freeze",
+    title: "4. EMERGENCY FREEZE",
     description:
-      "Solo las direcciones autorizadas podrán recibir transferencias.",
-  },
-  {
-    id: "copilot",
-    target: "copilot",
-    title: "5. KIPU AI COPILOT",
-    description:
-      "Escribe una instrucción para que el agente intente ejecutar una operación. KipuVault comprobará primero las reglas de seguridad.",
-  },
-  {
-    id: "ledger",
-    target: "ledger",
-    title: "6. AUDIT LEDGER",
-    description:
-      "Consulta el historial de operaciones, decisiones y evidencias de auditoría.",
+      "Si algo sale mal, un clic congela al agente on-chain.",
   },
 ];
 

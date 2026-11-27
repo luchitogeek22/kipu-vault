@@ -64,13 +64,13 @@ export function DashboardOverview({
     "Tu bóveda está protegida y operando dentro de las políticas configuradas.";
 
   if (!connectedWallet) {
-    securityState = "warning";
+    securityState = "ok";
     securityHeadline =
-      "Conecta tu wallet para visualizar y administrar tu bóveda en Solana.";
+      "Demo interactiva lista: prueba los 4 escenarios en Kipu AI Copilot ahora mismo. Conecta tu wallet para operar tu bóveda real en Solana Devnet.";
   } else if (!vault) {
     securityState = "warning";
     securityHeadline =
-      "Aún no has creado tu bóveda para este token. Usa el asistente o Políticas On-Chain para crearla.";
+      "Wallet conectada. Puedes usar el Sandbox en Copilot o crear tu bóveda real en Políticas On-Chain.";
   } else if (vault.isFrozen) {
     securityState = "danger";
     securityHeadline =
@@ -84,9 +84,9 @@ export function DashboardOverview({
     securityHeadline =
       "Tu Allowlist está vacía: ningún agente podrá transferir fondos hasta que autorices una dirección.";
   } else if (!isAuthenticated) {
-    securityState = "warning";
+    securityState = "ok";
     securityHeadline =
-      "Bóveda activa on-chain. Inicia sesión SIWS arriba para enviar instrucciones al Kipu AI Copilot.";
+      "Bóveda lista on-chain. Prueba el Sandbox en Copilot o firma SIWS arriba cuando quieras ejecutar transacciones reales.";
   }
 
   return (
