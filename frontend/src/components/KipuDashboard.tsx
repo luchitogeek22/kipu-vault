@@ -507,6 +507,10 @@ export function KipuDashboard() {
   };
 
   const handleStartSetup = () => {
+    if (experienceLevel === "advanced") {
+      setExperienceLevel("beginner");
+      writeExperienceLevel("beginner");
+    }
     writeStorageFlag(UX_STORAGE_KEYS.welcomeDismissed, true);
     writeStorageFlag(UX_STORAGE_KEYS.wizardDismissed, false);
     setWelcomeDismissed(true);
@@ -514,6 +518,10 @@ export function KipuDashboard() {
   };
 
   const handleViewDemo = () => {
+    if (experienceLevel === "advanced") {
+      setExperienceLevel("beginner");
+      writeExperienceLevel("beginner");
+    }
     writeStorageFlag(UX_STORAGE_KEYS.welcomeDismissed, true);
     setWelcomeDismissed(true);
     setWizardOpen(false);
@@ -523,11 +531,13 @@ export function KipuDashboard() {
   };
 
   const handleSkipAdvanced = () => {
-    writeExperienceLevel("advanced");
+    const nextLevel =
+      experienceLevel === "advanced" ? "advanced" : "intermediate";
+    writeExperienceLevel(nextLevel);
     writeStorageFlag(UX_STORAGE_KEYS.welcomeDismissed, true);
     writeStorageFlag(UX_STORAGE_KEYS.wizardDismissed, true);
     writeStorageFlag(UX_STORAGE_KEYS.tourCompleted, true);
-    setExperienceLevel("advanced");
+    setExperienceLevel(nextLevel);
     setWelcomeDismissed(true);
     setWizardOpen(false);
     setTourOpen(false);
@@ -582,7 +592,7 @@ export function KipuDashboard() {
     );
   }
 
-  if (!welcomeDismissed && experienceLevel !== "advanced") {
+  if (!welcomeDismissed) {
     return (
       <WelcomeScreen
         onStartSetup={handleStartSetup}
@@ -742,10 +752,18 @@ export function KipuDashboard() {
         onClose={() => setHelpOpen(false)}
         onRestartTour={() => {
           setHelpOpen(false);
+          if (experienceLevel === "advanced") {
+            setExperienceLevel("beginner");
+            writeExperienceLevel("beginner");
+          }
           setTourOpen(true);
         }}
         onOpenWizard={() => {
           setHelpOpen(false);
+          if (experienceLevel === "advanced") {
+            setExperienceLevel("beginner");
+            writeExperienceLevel("beginner");
+          }
           writeStorageFlag(UX_STORAGE_KEYS.welcomeDismissed, true);
           writeStorageFlag(UX_STORAGE_KEYS.wizardDismissed, false);
           setWelcomeDismissed(true);
