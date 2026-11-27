@@ -72,17 +72,22 @@ export function ProductTour({
 
     const el = document.querySelector(`[data-tour="${step.target}"]`);
     if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      const box = el.getBoundingClientRect();
+      const needsScroll =
+        box.top < 72 || box.bottom > window.innerHeight - 250;
+      if (needsScroll) {
+        el.scrollIntoView({ behavior: "auto", block: "center" });
+      }
     }
 
     updateTarget();
-    const timer1 = setTimeout(updateTarget, 180);
-    const timer2 = setTimeout(updateTarget, 420);
+    const rafId = window.requestAnimationFrame(updateTarget);
+    const timer1 = setTimeout(updateTarget, 120);
     window.addEventListener("resize", updateTarget);
     window.addEventListener("scroll", updateTarget, true);
     return () => {
+      window.cancelAnimationFrame(rafId);
       clearTimeout(timer1);
-      clearTimeout(timer2);
       window.removeEventListener("resize", updateTarget);
       window.removeEventListener("scroll", updateTarget, true);
     };
