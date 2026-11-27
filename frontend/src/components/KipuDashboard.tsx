@@ -45,6 +45,7 @@ import {
   writeExperienceLevel,
   writeStorageFlag,
   type ExperienceLevel,
+  type SecurityTimelinePoint,
 } from "@/lib/ux";
 import { TopBar } from "./TopBar";
 import { PolicyPanel } from "./PolicyPanel";
@@ -99,6 +100,11 @@ export function KipuDashboard() {
   const [tourOpen, setTourOpen] = useState(false);
   const [tourNeverAuto, setTourNeverAuto] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+
+  // Interactive Sandbox telemetry (clearly isolated from real on-chain data)
+  const [sandboxBalanceUsdc, setSandboxBalanceUsdc] = useState(100);
+  const [sandboxFrozen, setSandboxFrozen] = useState(false);
+  const [sandboxEvents, setSandboxEvents] = useState<SecurityTimelinePoint[]>([]);
 
   const connectedWallet = publicKey ? publicKey.toBase58() : null;
   const lastWalletRef = useRef<string | null>(null);
@@ -632,6 +638,9 @@ export function KipuDashboard() {
           isAuthenticated={Boolean(jwtToken)}
           lowSolWarning={Boolean(health?.low_sol_warning)}
           auditEntries={auditEntries}
+          sandboxEvents={sandboxEvents}
+          sandboxBalanceUsdc={sandboxBalanceUsdc}
+          sandboxFrozen={sandboxFrozen}
           experienceLevel={experienceLevel}
         />
 
@@ -709,6 +718,20 @@ export function KipuDashboard() {
               maxPerTxDisplay={maxPerTxDisplay}
               dailyRemainingDisplay={dailyRemainingDisplay}
               allowedCount={vault?.recipientCount ?? 0}
+              sandboxFrozen={sandboxFrozen}
+              onSandboxToggleFreeze={() => {
+                const next = !sandboxFrozen;
+                setSandboxFrozen(next);
+                return next;
+              }}
+              onSandboxRecord={(point) => {
+                setSandboxEvents((prev) => [...prev, point]);
+                if (point.status === "EXECUTED" && point.amountUsdc > 0) {
+                  setSandboxBalanceUsdc((prev) =>
+                    Math.max(0, Number((prev - point.amountUsdc).toFixed(2)))
+                  );
+                }
+              }}
             />
           </div>
 
@@ -737,9 +760,10 @@ export function KipuDashboard() {
 
         <AuditLedger
           entries={auditEntries}
+          sandboxEvents={sandboxEvents}
           onVerifyTx={(sig) => verifyAuditTx(sig)}
           experienceLevel={experienceLevel}
-          isFrozen={Boolean(vault?.isFrozen)}
+          isFrozen={vault ? Boolean(vault.isFrozen) : sandboxFrozen}
           isAuthenticated={Boolean(jwtToken)}
         />
       </main>

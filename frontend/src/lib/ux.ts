@@ -191,6 +191,17 @@ export const HELP_GLOSSARY: GlossaryItem[] = [
   },
 ];
 
+export interface SecurityTimelinePoint {
+  id: string;
+  label: string;
+  amountUsdc: number;
+  status: "EXECUTED" | "BLOCKED" | "FREEZE" | "ALERT";
+  reason: string;
+  timestamp: string;
+  riskScore: number;
+  isSandbox: boolean;
+}
+
 export function humanizeUiError(rawMessage: string): string {
   const lower = rawMessage.toLowerCase();
   if (lower.includes("rejected") || lower.includes("cancel")) {

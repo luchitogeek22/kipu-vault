@@ -21,10 +21,11 @@ import {
   formatBaseUnitsAsUsdc,
   truncateMiddle,
 } from "@/lib/format";
-import type { ExperienceLevel } from "@/lib/ux";
+import type { ExperienceLevel, SecurityTimelinePoint } from "@/lib/ux";
 
 interface AuditLedgerProps {
   entries: AuditLogEntry[];
+  sandboxEvents?: SecurityTimelinePoint[];
   onVerifyTx: (txSignature: string) => Promise<AuditVerifyResponse>;
   experienceLevel: ExperienceLevel;
   isFrozen?: boolean;
@@ -94,6 +95,7 @@ function describeDecisionReason(entry: AuditLogEntry): string {
 
 export function AuditLedger({
   entries,
+  sandboxEvents = [],
   onVerifyTx,
   experienceLevel,
   isFrozen = false,
@@ -277,6 +279,50 @@ export function AuditLedger({
       {verifyError && (
         <div className="mb-2.5 rounded-lg border border-kipu-crimson/50 bg-kipu-crimson/10 px-3 py-2 text-xs text-red-200">
           {verifyError}
+        </div>
+      )}
+
+      {/* Paytech-style Live Session Cards when testing in Sandbox before real on-chain history */}
+      {total === 0 && sandboxEvents.length > 0 && (
+        <div className="mb-3 space-y-2 rounded-lg border border-kipu-border bg-kipu-bg p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-zinc-200">
+              Actividad reciente de tu sesión (Demo Sandbox · sin tx en blockchain)
+            </span>
+            <span className="font-mono text-[11px] text-zinc-400">
+              {sandboxEvents.length} eventos locales
+            </span>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {[...sandboxEvents]
+              .reverse()
+              .slice(0, 4)
+              .map((ev) => (
+                <div
+                  key={ev.id}
+                  className={`rounded-lg border p-2.5 text-xs ${
+                    ev.status === "EXECUTED"
+                      ? "border-kipu-emerald/50 bg-kipu-emerald/10 text-emerald-100"
+                      : ev.status === "FREEZE"
+                        ? "border-sky-400/60 bg-sky-500/15 text-sky-100"
+                        : "border-kipu-crimson/60 bg-kipu-crimson/10 text-red-100"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="font-semibold text-white">{ev.label}</span>
+                    <span className="font-mono text-[10px] opacity-80">
+                      {ev.timestamp}
+                    </span>
+                  </div>
+                  <p className="mt-1 font-mono text-sm font-bold text-white">
+                    {ev.amountUsdc.toFixed(2)} USDC
+                  </p>
+                  <p className="mt-0.5 truncate text-[11px] opacity-90">
+                    {ev.reason}
+                  </p>
+                </div>
+              ))}
+          </div>
         </div>
       )}
 

@@ -7,8 +7,11 @@ import {
   CheckCircle2,
   ExternalLink,
   Flame,
+  KeyRound,
   Send,
   ShieldAlert,
+  ShieldCheck,
+  SlidersHorizontal,
   Snowflake,
   Sparkles,
   UserCheck,
@@ -20,7 +23,7 @@ import {
   isValidSolanaPubkey,
   truncateMiddle,
 } from "@/lib/format";
-import type { ExperienceLevel } from "@/lib/ux";
+import type { ExperienceLevel, SecurityTimelinePoint } from "@/lib/ux";
 import { InfoTooltip } from "./InfoTooltip";
 
 export interface CopilotMessage {
@@ -195,6 +198,9 @@ interface KipuCopilotProps {
   maxPerTxDisplay: string;
   dailyRemainingDisplay: string;
   allowedCount: number;
+  sandboxFrozen?: boolean;
+  onSandboxToggleFreeze?: () => boolean;
+  onSandboxRecord?: (point: SecurityTimelinePoint) => void;
 }
 
 export function KipuCopilot({
@@ -220,6 +226,9 @@ export function KipuCopilot({
   maxPerTxDisplay,
   dailyRemainingDisplay,
   allowedCount,
+  sandboxFrozen,
+  onSandboxToggleFreeze,
+  onSandboxRecord,
 }: KipuCopilotProps) {
   const [prompt, setPrompt] = useState("");
   const [selectedExampleId, setSelectedExampleId] = useState<
@@ -228,11 +237,12 @@ export function KipuCopilot({
   const [redTeamMode, setRedTeamMode] = useState(false);
   const [forcedRecipient, setForcedRecipient] = useState("");
   const [forcedAmount, setForcedAmount] = useState("150");
-  const [demoFrozen, setDemoFrozen] = useState(false);
+  const [demoFrozenLocal, setDemoFrozenLocal] = useState(false);
   const [sandboxMessages, setSandboxMessages] = useState<CopilotMessage[]>([]);
 
   const canRealExecute = Boolean(isAuthenticated && vaultAddress);
   const canSend = !sending;
+  const demoFrozen = sandboxFrozen ?? demoFrozenLocal;
   const effectiveFrozen = canRealExecute ? isFrozen : demoFrozen;
   const validDemoRecipient = isValidSolanaPubkey(demoRecipientAddress);
   const validAttacker = isValidSolanaPubkey(attackerAddress);
@@ -279,6 +289,36 @@ export function KipuCopilot({
         isSandbox: true,
       },
     ]);
+
+    if (onSandboxRecord) {
+      const numAmount = result.amount_usdc ? Number(result.amount_usdc) : 0;
+      const pointStatus: SecurityTimelinePoint["status"] =
+        result.error_name === "VaultFrozen"
+          ? "FREEZE"
+          : result.status === "EXECUTED"
+            ? "EXECUTED"
+            : result.status === "REJECTED_BY_AI"
+              ? "ALERT"
+              : "BLOCKED";
+      onSandboxRecord({
+        id: `sb-pt-${ts}`,
+        label:
+          result.error_name === "VaultFrozen"
+            ? "Emergency Freeze"
+            : result.status === "EXECUTED"
+              ? "Pago permitido (Sandbox)"
+              : `Bloqueado (${result.error_name ?? "Política"})`,
+        amountUsdc: Number.isFinite(numAmount) ? numAmount : 0,
+        status: pointStatus,
+        reason: result.error_name ?? "Dentro de reglas",
+        timestamp: new Date(ts).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        riskScore: result.risk_score,
+        isSandbox: true,
+      });
+    }
   };
 
   const buildSandboxResponse = (
@@ -513,8 +553,10 @@ export function KipuCopilot({
       await onToggleFreeze();
       return;
     }
-    const nextFrozen = !demoFrozen;
-    setDemoFrozen(nextFrozen);
+    const nextFrozen = onSandboxToggleFreeze
+      ? onSandboxToggleFreeze()
+      : !demoFrozen;
+    setDemoFrozenLocal(nextFrozen);
     pushSandboxExchange(
       nextFrozen ? "Activar Emergency Freeze (demo)" : "Descongelar bóveda (demo)",
       nextFrozen
@@ -587,113 +629,208 @@ export function KipuCopilot({
         </div>
       )}
 
-      {/* Flujo visual grande: lo primero que ve el juez */}
-      <div className="mb-3 rounded-xl border border-kipu-border bg-kipu-bg p-3">
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-300">
-            Flujo en vivo · Guardrails en acción
+      {/* Representación visual de seguridad de 5 nodos (CyberX style) */}
+      <div className="mb-3 rounded-xl border border-kipu-border bg-kipu-bg p-3.5">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
+            Arquitectura de protección · Flujo en vivo
           </span>
-          <span
-            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] font-bold ${
-              flowStatusKind === "allowed"
-                ? "border-kipu-emerald/60 bg-kipu-emerald/15 text-emerald-200"
+          <div className="flex items-center gap-2">
+            {flowR && (
+              <span className="font-mono text-xs text-zinc-300">
+                Riesgo:{" "}
+                <strong
+                  className={
+                    flowR.risk_score >= 70
+                      ? "text-kipu-crimson"
+                      : flowR.risk_score >= 35
+                        ? "text-kipu-gold"
+                        : "text-kipu-emerald"
+                  }
+                >
+                  {flowR.risk_score}/100
+                </strong>
+              </span>
+            )}
+            <span
+              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 font-mono text-[11px] font-bold ${
+                flowStatusKind === "allowed"
+                  ? "border-kipu-emerald/60 bg-kipu-emerald/15 text-emerald-200"
+                  : flowStatusKind === "blocked"
+                    ? "border-kipu-crimson/70 bg-kipu-crimson/20 text-red-100"
+                    : flowStatusKind === "freeze"
+                      ? "border-sky-400/70 bg-sky-500/20 text-sky-100"
+                      : "border-zinc-700 bg-kipu-card text-zinc-300"
+              }`}
+            >
+              {flowStatusKind === "allowed"
+                ? "AUTORIZADA"
                 : flowStatusKind === "blocked"
-                  ? "border-kipu-crimson/70 bg-kipu-crimson/20 text-red-100"
+                  ? "BLOQUEADA"
                   : flowStatusKind === "freeze"
-                    ? "border-sky-400/70 bg-sky-500/20 text-sky-100"
-                    : "border-zinc-700 bg-kipu-card text-zinc-300"
-            }`}
-          >
-            {flowStatusKind === "allowed"
-              ? "PERMITIDO"
-              : flowStatusKind === "blocked"
-                ? "BLOQUEADO"
-                : flowStatusKind === "freeze"
-                  ? "FREEZE ACTIVO"
-                  : "LISTO PARA PROBAR"}
-          </span>
+                    ? "FREEZE ACTIVO"
+                    : "LISTA"}
+            </span>
+          </div>
         </div>
 
-        <div className="grid gap-2 md:grid-cols-3">
-          <div className="rounded-lg border border-kipu-border bg-kipu-card p-2.5">
-            <p className="font-mono text-[10px] uppercase tracking-wider text-zinc-400">
-              01 · Agente propone
-            </p>
-            <p className="mt-1 line-clamp-2 text-xs font-semibold text-white">
-              {lastUserPromptMsg
-                ? lastUserPromptMsg.text
+        {/* 5 Connected Security Nodes: Agente -> Políticas -> Validación -> Autorización -> Transacción */}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          {[
+            {
+              step: "01",
+              label: "Agente IA",
+              sub: lastUserPromptMsg
+                ? lastUserPromptMsg.text.slice(0, 26)
                 : selectedExample
-                  ? selectedExample.promptText
-                  : "Elige un escenario abajo (seguro, ataque o Freeze)"}
-            </p>
-          </div>
-
-          <div className="rounded-lg border border-kipu-border bg-kipu-card p-2.5">
-            <p className="font-mono text-[10px] uppercase tracking-wider text-zinc-400">
-              02 · Reglas evaluadas
-            </p>
-            <p className="mt-1 font-mono text-xs text-zinc-200">
-              Tope: {sandboxLimitDisplay}
-            </p>
-            <p className="text-[11px] text-zinc-300">
-              24h: {sandboxDailyDisplay} · Allowlist: {sandboxAllowedCount}/8
-            </p>
-          </div>
-
-          <div
-            className={`rounded-lg border p-2.5 ${
-              flowStatusKind === "allowed"
-                ? "border-kipu-emerald/60 bg-kipu-emerald/15 text-emerald-100"
-                : flowStatusKind === "blocked"
-                  ? "border-kipu-crimson bg-kipu-crimson/15 text-red-100"
+                  ? selectedExample.promptText.slice(0, 26)
+                  : "Propone operación",
+              icon: Bot,
+              state:
+                flowStatusKind === "idle"
+                  ? "neutral"
                   : flowStatusKind === "freeze"
-                    ? "border-sky-400/70 bg-sky-500/15 text-sky-100"
-                    : "border-kipu-border bg-kipu-card text-zinc-200"
-            }`}
-          >
-            <p className="font-mono text-[10px] uppercase tracking-wider opacity-85">
-              03 · Resultado
-            </p>
-            <p className="mt-1 text-xs font-bold text-white">
-              {flowStatusKind === "freeze"
-                ? "Agente detenido por Emergency Freeze"
-                : flowStatusKind === "allowed"
-                  ? `Permitido (${flowR?.amount_usdc ?? "5.00"} USDC)`
+                    ? "freeze"
+                    : "active",
+            },
+            {
+              step: "02",
+              label: "Políticas",
+              sub: `≤ ${sandboxLimitDisplay.replace(" Mock USDC", "")} · Allowlist`,
+              icon: SlidersHorizontal,
+              state:
+                flowStatusKind === "idle"
+                  ? "neutral"
+                  : flowStatusKind === "freeze"
+                    ? "freeze"
+                    : flowStatusKind === "allowed"
+                      ? "ok"
+                      : "blocked",
+            },
+            {
+              step: "03",
+              label: "Validación",
+              sub:
+                flowStatusKind === "freeze"
+                  ? "Congelada (Freeze)"
                   : flowStatusKind === "blocked"
-                    ? `Bloqueado (${flowR?.error_name ?? "Política"})`
-                    : "Esperando ejecución"}
-            </p>
-            <p className="mt-0.5 line-clamp-1 text-[11px] opacity-90">
-              {flowStatusKind === "freeze"
-                ? "0 transferencias mientras esté congelada."
-                : flowR
-                  ? flowR.explanation_es
-                  : "Presiona 1, 2, 3 o 4 para comprobar."}
-            </p>
-            {flowR && (
-              <div className="mt-2">
-                <div className="mb-0.5 flex items-center justify-between font-mono text-[10px]">
-                  <span>Riesgo evaluado</span>
-                  <span>{flowR.risk_score}/100</span>
+                    ? flowR?.error_name ?? "Rechazada"
+                    : flowStatusKind === "allowed"
+                      ? "Reglas cumplidas"
+                      : "Verifica contrato",
+              icon:
+                flowStatusKind === "freeze"
+                  ? Snowflake
+                  : flowStatusKind === "blocked"
+                    ? ShieldAlert
+                    : ShieldCheck,
+              state:
+                flowStatusKind === "idle"
+                  ? "neutral"
+                  : flowStatusKind === "freeze"
+                    ? "freeze"
+                    : flowStatusKind === "allowed"
+                      ? "ok"
+                      : "blocked",
+            },
+            {
+              step: "04",
+              label: "Autorización",
+              sub:
+                flowStatusKind === "allowed"
+                  ? "Firma aprobada"
+                  : flowStatusKind === "blocked" || flowStatusKind === "freeze"
+                    ? "Denegada"
+                    : "Espera validación",
+              icon: KeyRound,
+              state:
+                flowStatusKind === "allowed"
+                  ? "ok"
+                  : flowStatusKind === "blocked" || flowStatusKind === "freeze"
+                    ? "dim"
+                    : "neutral",
+            },
+            {
+              step: "05",
+              label: "Transacción",
+              sub:
+                flowStatusKind === "allowed"
+                  ? `${flowR?.amount_usdc ?? "5.00"} USDC ok`
+                  : flowStatusKind === "blocked" || flowStatusKind === "freeze"
+                    ? "0 USDC movidos"
+                    : "Solana Devnet",
+              icon: CheckCircle2,
+              state:
+                flowStatusKind === "allowed"
+                  ? "ok"
+                  : flowStatusKind === "blocked" || flowStatusKind === "freeze"
+                    ? "dim"
+                    : "neutral",
+            },
+          ].map((node) => {
+            const Icon = node.icon;
+            const ringStyle =
+              node.state === "ok"
+                ? "border-kipu-emerald/60 bg-kipu-emerald/15 text-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.18)]"
+                : node.state === "blocked"
+                  ? "border-kipu-crimson bg-kipu-crimson/20 text-red-100 shadow-[0_0_16px_rgba(239,68,68,0.22)]"
+                  : node.state === "freeze"
+                    ? "border-sky-400/70 bg-sky-500/20 text-sky-100 shadow-[0_0_16px_rgba(56,189,248,0.2)]"
+                    : node.state === "active"
+                      ? "border-kipu-gold/60 bg-kipu-gold/10 text-amber-100"
+                      : node.state === "dim"
+                        ? "border-zinc-800 bg-kipu-card/40 text-zinc-500 opacity-60"
+                        : "border-kipu-border bg-kipu-card text-zinc-200";
+            return (
+              <div
+                key={node.step}
+                className={`flex flex-col justify-between rounded-xl border p-2.5 transition-all duration-300 ${ringStyle}`}
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="font-mono text-[11px] opacity-75">
+                    {node.step}
+                  </span>
                 </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/35">
-                  <div
-                    className={`h-full transition-all duration-300 ${
-                      flowR.risk_score >= 70
-                        ? "bg-kipu-crimson"
-                        : flowR.risk_score >= 35
-                          ? "bg-kipu-gold"
-                          : "bg-kipu-emerald"
-                    }`}
-                    style={{
-                      width: `${Math.max(4, Math.min(100, flowR.risk_score))}%`,
-                    }}
-                  />
+                <div className="mt-2">
+                  <p className="font-display text-xs font-bold text-white">
+                    {node.label}
+                  </p>
+                  <p className="mt-0.5 truncate text-[11px] opacity-90">
+                    {node.sub}
+                  </p>
                 </div>
               </div>
-            )}
-          </div>
+            );
+          })}
         </div>
+
+        {/* Summary & Risk Bar */}
+        {flowR && (
+          <div className="mt-2.5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 bg-kipu-card px-3 py-2 text-xs">
+            <p className="flex-1 text-zinc-100">{flowR.explanation_es}</p>
+            <div className="w-36 shrink-0">
+              <div className="mb-0.5 flex justify-between font-mono text-[11px] text-zinc-300">
+                <span>Riesgo</span>
+                <span>{flowR.risk_score}/100</span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
+                <div
+                  className={`h-full transition-all duration-300 ${
+                    flowR.risk_score >= 70
+                      ? "bg-kipu-crimson"
+                      : flowR.risk_score >= 35
+                        ? "bg-kipu-gold"
+                        : "bg-kipu-emerald"
+                  }`}
+                  style={{
+                    width: `${Math.max(4, Math.min(100, flowR.risk_score))}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Botones de escenario destacados + ejemplos */}
