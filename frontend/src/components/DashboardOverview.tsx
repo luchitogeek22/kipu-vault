@@ -9,12 +9,14 @@ import {
   ShieldCheck,
   Snowflake,
   Users,
+  Wallet,
 } from "lucide-react";
 import type { AuditLogEntry } from "@/lib/api";
 import { formatBaseUnitsAsUsdc } from "@/lib/format";
 import type { DecodedVaultState } from "@/lib/kipuVault";
 import type { ExperienceLevel, SecurityTimelinePoint } from "@/lib/ux";
-import { InfoTooltip, SkeletonBlock } from "./InfoTooltip";
+import { SkeletonBlock } from "./InfoTooltip";
+import { SecurityGauges } from "./SecurityGauges";
 import { VaultAnalyticsChart } from "./VaultAnalyticsChart";
 
 interface DashboardOverviewProps {
@@ -100,10 +102,6 @@ export function DashboardOverview({
     ? Number(formatBaseUnitsAsUsdc(vault.maxPerTx, 2))
     : 10;
   const remainingDailyUsdc = Math.max(0, dailyLimitUsdc - spentTodayUsdc);
-  const dailyUsedPct =
-    dailyLimitUsdc > 0
-      ? Math.min(100, Math.round((spentTodayUsdc / dailyLimitUsdc) * 100))
-      : 0;
 
   const blockedCount = usingRealData
     ? auditEntries.filter(
@@ -117,7 +115,18 @@ export function DashboardOverview({
       ).length;
 
   const effectiveFrozen = vault ? vault.isFrozen : sandboxFrozen;
+  const allowlistCount = vault ? vault.recipientCount : 1;
   const latestPoint = timelinePoints[timelinePoints.length - 1];
+  const currentRiskScore = effectiveFrozen
+    ? 100
+    : latestPoint
+      ? latestPoint.riskScore
+      : 11;
+  const lastReason = effectiveFrozen
+    ? "Emergency Freeze activo: agente detenido"
+    : latestPoint
+      ? `${latestPoint.label} · ${latestPoint.reason}`
+      : "Bóveda lista dentro de límites seguros";
 
   let securityState: "ok" | "freeze" | "warning" | "danger" = "ok";
   let securityHeadline =
@@ -131,11 +140,11 @@ export function DashboardOverview({
   } else if (!connectedWallet) {
     securityState = "ok";
     securityHeadline =
-      "Demo interactiva lista: prueba pago seguro, ataque o Freeze abajo y observa la gráfica y el pipeline en tiempo real.";
+      "Demo interactiva lista: prueba un escenario arriba o en el Copilot para ver actualizarse el Radar, Risk Score y la evolución en vivo.";
   } else if (!vault) {
     securityState = "warning";
     securityHeadline =
-      "Wallet conectada. Crea tu bóveda real en Vault Protection Center o prueba el Sandbox abajo.";
+      "Wallet conectada. Crea tu bóveda real en Vault Protection Center o prueba el Sandbox.";
   } else if (lowSolWarning) {
     securityState = "danger";
     securityHeadline =
@@ -147,17 +156,19 @@ export function DashboardOverview({
   } else if (!isAuthenticated) {
     securityState = "ok";
     securityHeadline =
-      "Bóveda activa on-chain. Firma SIWS arriba para cargar tu historial real y operar en Devnet.";
+      "Bóveda activa on-chain. Firma SIWS arriba para cargar tu historial real en Devnet.";
   }
 
   return (
     <section
+      id="sec-overview"
       data-tour="vault-summary"
       aria-label="Security Overview"
       className="space-y-3"
     >
+      {/* Status Banner */}
       <div
-        className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border px-4 py-2 text-xs shadow-sm ${
+        className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border px-4 py-2 text-xs ${
           securityState === "ok"
             ? "border-kipu-emerald/45 bg-kipu-emerald/10 text-emerald-100"
             : securityState === "freeze"
@@ -185,155 +196,120 @@ export function DashboardOverview({
         </span>
       </div>
 
+      {/* TrustScan-style Top Global Metrics Strip (5 crisp compact cards) */}
       {experienceLevel !== "advanced" && (
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
-          {/* Izquierda (col-8): Gráfico real de evolución de saldo, consumo y actividad */}
-          <div className="lg:col-span-8">
-            {loadingVault ? (
-              <div className="rounded-xl border border-kipu-border bg-kipu-card p-4 space-y-3">
-                <SkeletonBlock className="h-7 w-48" />
-                <SkeletonBlock className="h-40 w-full" />
-              </div>
-            ) : (
-              <VaultAnalyticsChart
-                currentBalanceUsdc={currentBalanceUsdc}
-                dailyLimitUsdc={dailyLimitUsdc}
-                spentTodayUsdc={spentTodayUsdc}
-                maxPerTxUsdc={maxPerTxUsdc}
-                isFrozen={effectiveFrozen}
-                isRealVault={isRealVault}
-                timelinePoints={timelinePoints}
-              />
-            )}
-          </div>
-
-          {/* Derecha (col-4): Tarjetas clave de estado, límite disponible y resumen secundario */}
-          <div className="grid gap-2.5 sm:grid-cols-2 lg:col-span-4 lg:grid-cols-1">
-            <div className="grid grid-cols-2 gap-2.5">
-              {/* Protection Status */}
-              <div className="rounded-xl border border-kipu-border bg-kipu-card p-3">
-                <div className="flex items-center justify-between text-xs text-zinc-300">
-                  <span className="inline-flex items-center gap-1 font-medium">
-                    {effectiveFrozen ? (
-                      <Snowflake className="h-3.5 w-3.5 text-sky-300" />
-                    ) : (
-                      <ShieldCheck className="h-3.5 w-3.5 text-kipu-emerald" />
-                    )}
-                    Protección
-                  </span>
-                  <InfoTooltip text="Indica si las reglas permiten operar al agente o si Emergency Freeze está activo." />
-                </div>
-                <p
-                  className={`mt-1.5 font-display text-lg font-bold ${
-                    effectiveFrozen
-                      ? "text-sky-300"
-                      : isRealVault
-                        ? "text-kipu-emerald"
-                        : "text-emerald-200"
-                  }`}
-                >
-                  {effectiveFrozen
-                    ? "Freeze"
-                    : isRealVault
-                      ? "Protegida"
-                      : "Sandbox"}
-                </p>
-                <p className="text-xs text-zinc-300">
-                  {effectiveFrozen ? "Agente detenido" : "Guardrails activos"}
-                </p>
-              </div>
-
-              {/* Blocked Transactions */}
-              <div className="rounded-xl border border-kipu-border bg-kipu-card p-3">
-                <div className="flex items-center justify-between text-xs text-zinc-300">
-                  <span className="inline-flex items-center gap-1 font-medium">
-                    <Ban className="h-3.5 w-3.5 text-kipu-crimson" />
-                    Bloqueadas
-                  </span>
-                  <InfoTooltip text="Operaciones peligrosas o fuera de límite detenidas antes de mover fondos." />
-                </div>
-                <p className="mt-1.5 font-display text-lg font-bold text-red-200">
-                  {blockedCount}
-                </p>
-                <p className="text-xs text-zinc-300">
-                  {usingRealData ? "En Solana Devnet" : "En sesión actual"}
-                </p>
-              </div>
+        <>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="kipu-card-glow rounded-xl border border-kipu-border p-3">
+              <p className="inline-flex items-center gap-1.5 text-xs text-zinc-400">
+                <Wallet className="h-3.5 w-3.5 text-kipu-gold" />
+                Vault Balance
+              </p>
+              <p className="mt-1 font-display text-xl font-bold text-white">
+                {currentBalanceUsdc.toFixed(2)}{" "}
+                <span className="text-xs font-normal text-zinc-400">USDC</span>
+              </p>
             </div>
 
-            {/* Available Spending Limit */}
-            <div className="rounded-xl border border-kipu-border bg-kipu-card p-3">
-              <div className="flex items-center justify-between text-xs text-zinc-300">
-                <span className="inline-flex items-center gap-1.5 font-medium">
-                  <Gauge className="h-3.5 w-3.5 text-zinc-300" />
-                  Límite disponible (24h)
-                </span>
-                <span className="font-mono text-xs text-zinc-200">
-                  {dailyUsedPct}% usado
-                </span>
-              </div>
+            <div className="kipu-card-glow rounded-xl border border-kipu-border p-3">
+              <p className="inline-flex items-center gap-1.5 text-xs text-zinc-400">
+                {effectiveFrozen ? (
+                  <Snowflake className="h-3.5 w-3.5 text-sky-300" />
+                ) : (
+                  <ShieldCheck className="h-3.5 w-3.5 text-kipu-emerald" />
+                )}
+                Protection
+              </p>
+              <p
+                className={`mt-1 font-display text-xl font-bold ${
+                  effectiveFrozen
+                    ? "text-sky-300"
+                    : isRealVault
+                      ? "text-kipu-emerald"
+                      : "text-emerald-200"
+                }`}
+              >
+                {effectiveFrozen
+                  ? "Freeze"
+                  : isRealVault
+                    ? "Protegida"
+                    : "Sandbox"}
+              </p>
+            </div>
+
+            <div className="kipu-card-glow rounded-xl border border-kipu-border p-3">
+              <p className="inline-flex items-center gap-1.5 text-xs text-zinc-400">
+                <Gauge className="h-3.5 w-3.5 text-zinc-300" />
+                24h Available
+              </p>
               <p className="mt-1 font-display text-xl font-bold text-white">
-                {remainingDailyUsdc.toFixed(2)}{" "}
-                <span className="font-mono text-xs font-normal text-zinc-300">
-                  / {dailyLimitUsdc.toFixed(0)} USDC (tope {maxPerTxUsdc.toFixed(0)}/tx)
+                {remainingDailyUsdc.toFixed(0)}{" "}
+                <span className="text-xs font-normal text-zinc-400">
+                  / {dailyLimitUsdc.toFixed(0)} USDC
                 </span>
               </p>
-              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-zinc-800">
-                <div
-                  className={`h-full transition-all ${
-                    dailyUsedPct >= 90 ? "bg-kipu-crimson" : "bg-kipu-emerald"
-                  }`}
-                  style={{ width: `${100 - dailyUsedPct}%` }}
-                />
-              </div>
             </div>
 
-            {/* Authorized Wallets + Last Security Activity */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <div className="rounded-xl border border-kipu-border bg-kipu-card p-3">
-                <div className="flex items-center justify-between text-xs text-zinc-300">
-                  <span className="inline-flex items-center gap-1 font-medium">
-                    <Users className="h-3.5 w-3.5 text-kipu-emerald" />
-                    Allowlist
-                  </span>
-                </div>
-                <p className="mt-1 font-display text-base font-bold text-white">
-                  {vault ? `${vault.recipientCount} / 8` : "1 / 8 (demo)"}
-                </p>
-                <div className="mt-1.5 grid grid-cols-8 gap-1">
-                  {Array.from({ length: 8 }).map((_, idx) => {
-                    const count = vault ? vault.recipientCount : 1;
-                    return (
-                      <span
-                        key={idx}
-                        className={`h-1.5 rounded-full ${
-                          idx < count ? "bg-kipu-emerald" : "bg-zinc-800"
-                        }`}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
+            <div className="kipu-card-glow rounded-xl border border-kipu-border p-3">
+              <p className="inline-flex items-center gap-1.5 text-xs text-zinc-400">
+                <Ban className="h-3.5 w-3.5 text-kipu-crimson" />
+                Blocked Attempts
+              </p>
+              <p className="mt-1 font-display text-xl font-bold text-red-200">
+                {blockedCount}
+              </p>
+            </div>
 
-              <div className="rounded-xl border border-kipu-border bg-kipu-card p-3">
-                <div className="flex items-center justify-between text-xs text-zinc-300">
-                  <span className="inline-flex items-center gap-1 font-medium">
-                    <Activity className="h-3.5 w-3.5 text-zinc-300" />
-                    Última
-                  </span>
-                </div>
-                <p className="mt-1 truncate text-xs font-bold text-white">
-                  {latestPoint ? latestPoint.label : "Sin actividad"}
+            <div className="kipu-card-glow col-span-2 rounded-xl border border-kipu-border p-3 sm:col-span-1">
+              <p className="inline-flex items-center gap-1.5 text-xs text-zinc-400">
+                <Users className="h-3.5 w-3.5 text-kipu-emerald" />
+                Allowlist & Activity
+              </p>
+              <div className="mt-1 flex items-baseline justify-between gap-2">
+                <p className="font-display text-xl font-bold text-white">
+                  {allowlistCount}/8
                 </p>
-                <p className="mt-0.5 text-xs text-zinc-300">
-                  {latestPoint
-                    ? `${latestPoint.amountUsdc.toFixed(2)} USDC · ${latestPoint.timestamp}`
-                    : "Esperando prueba"}
-                </p>
+                <span className="inline-flex items-center gap-1 truncate font-mono text-[11px] text-zinc-300">
+                  <Activity className="h-3 w-3 text-kipu-gold" />
+                  {latestPoint ? latestPoint.timestamp : "Listo"}
+                </span>
               </div>
             </div>
           </div>
-        </div>
+
+          {/* 3-Column TrustScan Security Gauges: Threat Radar | Risk Score Arc | Vault Overview + Guardrails */}
+          {loadingVault ? (
+            <div className="grid gap-3 lg:grid-cols-3">
+              <SkeletonBlock className="h-64 w-full" />
+              <SkeletonBlock className="h-64 w-full" />
+              <SkeletonBlock className="h-64 w-full" />
+            </div>
+          ) : (
+            <SecurityGauges
+              points={timelinePoints}
+              currentRiskScore={currentRiskScore}
+              lastReason={lastReason}
+              isFrozen={effectiveFrozen}
+              isRealVault={isRealVault}
+              balanceUsdc={currentBalanceUsdc}
+              dailyRemainingUsdc={remainingDailyUsdc}
+              dailyLimitUsdc={dailyLimitUsdc}
+              maxPerTxUsdc={maxPerTxUsdc}
+              allowlistCount={allowlistCount}
+            />
+          )}
+
+          {/* Balance Evolution & Limit Consumption SVG Chart */}
+          <VaultAnalyticsChart
+            currentBalanceUsdc={currentBalanceUsdc}
+            dailyLimitUsdc={dailyLimitUsdc}
+            spentTodayUsdc={spentTodayUsdc}
+            maxPerTxUsdc={maxPerTxUsdc}
+            isFrozen={effectiveFrozen}
+            isRealVault={isRealVault}
+            timelinePoints={timelinePoints}
+          />
+        </>
       )}
     </section>
   );

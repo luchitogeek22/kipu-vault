@@ -163,7 +163,7 @@ export function AuditLedger({
     <section
       data-tour="ledger"
       aria-label="Security Activity Center"
-      className="rounded-xl border border-kipu-border bg-kipu-card p-4 shadow-sm"
+      className="kipu-card-glow rounded-xl border border-kipu-border p-4"
     >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-kipu-border pb-3">
         <div className="flex items-center gap-2.5">

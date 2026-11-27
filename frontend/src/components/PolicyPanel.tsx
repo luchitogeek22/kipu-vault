@@ -174,7 +174,7 @@ export function PolicyPanel({
   return (
     <aside
       data-tour="policies"
-      className="flex flex-col gap-2.5 rounded-xl border border-kipu-border bg-kipu-card p-3.5"
+      className="kipu-card-glow flex flex-col gap-2.5 rounded-xl border border-kipu-border p-4"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">

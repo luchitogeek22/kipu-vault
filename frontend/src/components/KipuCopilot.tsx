@@ -578,7 +578,7 @@ export function KipuCopilot({
   return (
     <section
       data-tour="copilot"
-      className="flex flex-col rounded-xl border border-kipu-border bg-kipu-card p-3.5"
+      className="kipu-card-glow flex flex-col rounded-xl border border-kipu-border p-4"
     >
       <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-kipu-border pb-2.5">
         <div className="flex items-center gap-2">

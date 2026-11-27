@@ -56,6 +56,7 @@ import { OnboardingWizard } from "./OnboardingWizard";
 import { ProductTour } from "./ProductTour";
 import { DashboardOverview } from "./DashboardOverview";
 import { HelpDrawer } from "./HelpDrawer";
+import { SidebarNav } from "./SidebarNav";
 
 export function KipuDashboard() {
   const { connection } = useConnection();
@@ -609,28 +610,43 @@ export function KipuDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-kipu-bg text-zinc-100">
-      <TopBar
-        connectedWallet={connectedWallet}
-        isAuthenticated={Boolean(jwtToken)}
-        signingIn={signingIn}
-        onSignIn={handleSignIn}
-        vault={vault}
-        freezing={freezing}
-        onToggleFreeze={handleToggleFreeze}
-        agentSolBalance={health?.agent_sol_balance ?? null}
-        lowSolWarning={Boolean(health?.low_sol_warning)}
-        experienceLevel={experienceLevel}
-        onChangeExperienceLevel={handleChangeExperienceLevel}
-        onOpenHelp={() => setHelpOpen(true)}
-        showWizardButton={experienceLevel !== "advanced" && !wizardOpen}
+    <div className="flex min-h-screen bg-kipu-bg text-zinc-100">
+      <SidebarNav
+        showWizardAction={experienceLevel !== "advanced" && !wizardOpen}
         onOpenWizard={() => {
           writeStorageFlag(UX_STORAGE_KEYS.wizardDismissed, false);
           setWizardOpen(true);
         }}
+        onOpenHelp={() => setHelpOpen(true)}
+        onOpenWelcome={() => {
+          writeStorageFlag(UX_STORAGE_KEYS.welcomeDismissed, false);
+          setWelcomeDismissed(false);
+        }}
+        isRealVault={Boolean(vault)}
       />
 
-      <main className="mx-auto max-w-[1440px] space-y-3 px-4 py-3.5 sm:px-6">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <TopBar
+          connectedWallet={connectedWallet}
+          isAuthenticated={Boolean(jwtToken)}
+          signingIn={signingIn}
+          onSignIn={handleSignIn}
+          vault={vault}
+          freezing={freezing}
+          onToggleFreeze={handleToggleFreeze}
+          agentSolBalance={health?.agent_sol_balance ?? null}
+          lowSolWarning={Boolean(health?.low_sol_warning)}
+          experienceLevel={experienceLevel}
+          onChangeExperienceLevel={handleChangeExperienceLevel}
+          onOpenHelp={() => setHelpOpen(true)}
+          showWizardButton={experienceLevel !== "advanced" && !wizardOpen}
+          onOpenWizard={() => {
+            writeStorageFlag(UX_STORAGE_KEYS.wizardDismissed, false);
+            setWizardOpen(true);
+          }}
+        />
+
+        <main className="mx-auto w-full max-w-[1440px] space-y-3.5 px-4 py-4 sm:px-6">
         <DashboardOverview
           vault={vault}
           loadingVault={loadingVault}
@@ -694,7 +710,7 @@ export function KipuDashboard() {
         )}
 
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">
-          <div className="flex flex-col gap-3 lg:col-span-8">
+          <div id="sec-copilot" className="flex flex-col gap-3 lg:col-span-8">
             <KipuCopilot
               demoMode={Boolean(health?.demo_mode)}
               isAuthenticated={Boolean(jwtToken)}
@@ -735,7 +751,7 @@ export function KipuDashboard() {
             />
           </div>
 
-          <div className="lg:col-span-4">
+          <div id="sec-config" className="lg:col-span-4">
             <PolicyPanel
               mintInput={mintInput}
               onChangeMintInput={setMintInput}
@@ -758,15 +774,18 @@ export function KipuDashboard() {
           </div>
         </div>
 
-        <AuditLedger
-          entries={auditEntries}
-          sandboxEvents={sandboxEvents}
-          onVerifyTx={(sig) => verifyAuditTx(sig)}
-          experienceLevel={experienceLevel}
-          isFrozen={vault ? Boolean(vault.isFrozen) : sandboxFrozen}
-          isAuthenticated={Boolean(jwtToken)}
-        />
+        <div id="sec-activity">
+          <AuditLedger
+            entries={auditEntries}
+            sandboxEvents={sandboxEvents}
+            onVerifyTx={(sig) => verifyAuditTx(sig)}
+            experienceLevel={experienceLevel}
+            isFrozen={vault ? Boolean(vault.isFrozen) : sandboxFrozen}
+            isAuthenticated={Boolean(jwtToken)}
+          />
+        </div>
       </main>
+      </div>
 
       <ProductTour
         open={tourOpen}
