@@ -118,9 +118,11 @@ class SupabaseRepository(AuditRepository):
             raise RuntimeError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be configured")
         headers = {
             "apikey": self.service_role_key,
-            "Authorization": f"Bearer {self.service_role_key}",
             "Content-Type": "application/json",
         }
+        # New Supabase secret keys (sb_secret_...) must NOT be sent as Bearer JWTs.
+        if not self.service_role_key.startswith("sb_secret_"):
+            headers["Authorization"] = f"Bearer {self.service_role_key}"
         if prefer:
             headers["Prefer"] = prefer
         return headers

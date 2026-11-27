@@ -92,5 +92,5 @@ def test_settings_default_idl_path_points_to_target(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("KIPU_IDL_PATH", raising=False)
-    settings = Settings()
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
     assert Path(settings.kipu_idl_path).as_posix().endswith("target/idl/kipu_vault.json")
