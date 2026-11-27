@@ -268,24 +268,47 @@ export function KipuCopilot({
     ]);
   };
 
+  const buildSandboxResponse = (
+    partial: Pick<
+      ExecuteIntentResponse,
+      "audit_id" | "status" | "explanation_es" | "risk_score"
+    > &
+      Partial<ExecuteIntentResponse>
+  ): ExecuteIntentResponse => ({
+    decision_hash: "demo-sandbox-local",
+    tx_signature: null,
+    error_code: null,
+    error_name: null,
+    guardrail_triggered:
+      partial.status === "BLOCKED_ONCHAIN" ||
+      partial.status === "BLOCKED_PREFLIGHT",
+    risk_flags: [],
+    recipient_address: null,
+    amount_usdc: null,
+    ...partial,
+  });
+
   const evaluateSandboxPrompt = (userPrompt: string) => {
     const destAllowed = demoRecipientAddress.trim() || "wallet_demo";
     const destAttacker = attackerAddress.trim() || "wallet_atacante";
     const lower = userPrompt.toLowerCase();
 
     if (demoFrozen) {
-      pushSandboxExchange(userPrompt, "Bóveda congelada en Modo Demo Sandbox.", {
-        audit_id: "demo-sandbox-freeze",
-        decision_hash: "demo-sandbox-local",
-        status: "BLOCKED_PREFLIGHT",
-        error_name: "VaultFrozen",
-        explanation_es:
-          "Simulación local: Emergency Freeze está activo. Presiona «4. Descongelar» para reactivar al agente.",
-        risk_score: 100,
-        recipient_address: destAllowed,
-        amount_usdc: "5.00",
-        tx_signature: null,
-      });
+      pushSandboxExchange(
+        userPrompt,
+        "Bóveda congelada en Modo Demo Sandbox.",
+        buildSandboxResponse({
+          audit_id: "demo-sandbox-freeze",
+          status: "BLOCKED_PREFLIGHT",
+          error_name: "VaultFrozen",
+          explanation_es:
+            "Simulación local: Emergency Freeze está activo. Presiona «4. Descongelar» para reactivar al agente.",
+          risk_score: 100,
+          risk_flags: ["VAULT_FROZEN"],
+          recipient_address: destAllowed,
+          amount_usdc: "5.00",
+        })
+      );
       return;
     }
 
@@ -298,18 +321,17 @@ export function KipuCopilot({
       pushSandboxExchange(
         userPrompt,
         `Simulación local bloqueada: ${truncateMiddle(destAttacker, 6, 4)} no pertenece a la allowlist aprobada.`,
-        {
+        buildSandboxResponse({
           audit_id: "demo-sandbox-allowlist",
-          decision_hash: "demo-sandbox-local",
           status: "BLOCKED_ONCHAIN",
           error_name: "RecipientNotAllowed",
           explanation_es:
             "La dirección destino no figura en tu Allowlist autorizada. El contrato rechaza el desvío antes de mover fondos.",
           risk_score: 95,
+          risk_flags: ["RECIPIENT_NOT_ALLOWED"],
           recipient_address: destAttacker,
           amount_usdc: "5.00",
-          tx_signature: null,
-        },
+        }),
         "red_team"
       );
       return;
@@ -321,17 +343,16 @@ export function KipuCopilot({
       pushSandboxExchange(
         userPrompt,
         `Simulación local bloqueada: ${numericAmount.toFixed(2)} Mock USDC supera el tope por transacción de 10.00 Mock USDC.`,
-        {
+        buildSandboxResponse({
           audit_id: "demo-sandbox-limit",
-          decision_hash: "demo-sandbox-local",
           status: "BLOCKED_ONCHAIN",
           error_name: "ExceedsTransactionLimit",
           explanation_es: `El monto solicitado (${numericAmount.toFixed(2)} Mock USDC) excede el tope máximo por operación (10.00 Mock USDC). 0 tokens perdidos.`,
           risk_score: 92,
+          risk_flags: ["EXCEEDS_TX_LIMIT"],
           recipient_address: destAllowed,
           amount_usdc: numericAmount.toFixed(2),
-          tx_signature: null,
-        },
+        }),
         "red_team"
       );
       return;
@@ -340,17 +361,15 @@ export function KipuCopilot({
     pushSandboxExchange(
       userPrompt,
       `Simulación local permitida: ${numericAmount.toFixed(2)} Mock USDC hacia ${truncateMiddle(destAllowed, 6, 4)} cumple Tope ≤ 10, Diario ≤ 50 y Allowlist. Conecta Phantom + SIWS para enviarlo en vivo a Solana Devnet.`,
-      {
+      buildSandboxResponse({
         audit_id: "demo-sandbox-safe",
-        decision_hash: "demo-sandbox-local",
         status: "EXECUTED",
         explanation_es:
           "Operación válida dentro de los guardrails configurados (simulación local en Demo Sandbox).",
         risk_score: 10,
         recipient_address: destAllowed,
         amount_usdc: numericAmount.toFixed(2),
-        tx_signature: null,
-      }
+      })
     );
   };
 
@@ -488,17 +507,16 @@ export function KipuCopilot({
       nextFrozen
         ? "Emergency Freeze activado (DEMO SANDBOX): el agente quedó bloqueado. Intenta ahora «1. Prueba Segura» para comprobar el bloqueo."
         : "Bóveda demo descongelada: el agente vuelve a operar dentro de límites.",
-      {
+      buildSandboxResponse({
         audit_id: nextFrozen ? "demo-sandbox-frozen" : "demo-sandbox-unfrozen",
-        decision_hash: "demo-sandbox-local",
         status: nextFrozen ? "BLOCKED_PREFLIGHT" : "EXECUTED",
-        error_name: nextFrozen ? "VaultFrozen" : undefined,
+        error_name: nextFrozen ? "VaultFrozen" : null,
         explanation_es: nextFrozen
           ? "Emergency Freeze detenido al instante sin perder fondos."
           : "Protección reanudada con reglas normales.",
         risk_score: nextFrozen ? 100 : 0,
-        tx_signature: null,
-      }
+        risk_flags: nextFrozen ? ["VAULT_FROZEN"] : [],
+      })
     );
   };
 
