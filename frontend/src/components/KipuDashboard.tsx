@@ -32,12 +32,29 @@ import {
   type ExecuteIntentResponse,
   type HealthResponse,
 } from "@/lib/api";
-import { parseUsdcToBaseUnits } from "@/lib/format";
+import {
+  formatBaseUnitsAsUsdc,
+  parseUsdcToBaseUnits,
+} from "@/lib/format";
 import { FRONTEND_CONFIG } from "@/lib/config";
+import {
+  UX_STORAGE_KEYS,
+  humanizeUiError,
+  readExperienceLevel,
+  readStorageFlag,
+  writeExperienceLevel,
+  writeStorageFlag,
+  type ExperienceLevel,
+} from "@/lib/ux";
 import { TopBar } from "./TopBar";
 import { PolicyPanel } from "./PolicyPanel";
 import { KipuCopilot, type CopilotMessage } from "./KipuCopilot";
 import { AuditLedger } from "./AuditLedger";
+import { WelcomeScreen } from "./WelcomeScreen";
+import { OnboardingWizard } from "./OnboardingWizard";
+import { ProductTour } from "./ProductTour";
+import { DashboardOverview } from "./DashboardOverview";
+import { HelpDrawer } from "./HelpDrawer";
 
 export function KipuDashboard() {
   const { connection } = useConnection();
@@ -73,8 +90,30 @@ export function KipuDashboard() {
     lastRequest: Omit<ExecuteIntentRequest, "vault_address">;
   } | null>(null);
 
+  // UX / Onboarding state (hydrated client-side to avoid SSR mismatch)
+  const [uxReady, setUxReady] = useState(false);
+  const [experienceLevel, setExperienceLevel] =
+    useState<ExperienceLevel>("beginner");
+  const [welcomeDismissed, setWelcomeDismissed] = useState(true);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const [tourNeverAuto, setTourNeverAuto] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+
   const connectedWallet = publicKey ? publicKey.toBase58() : null;
   const lastWalletRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const level = readExperienceLevel();
+    const wDismissed = readStorageFlag(UX_STORAGE_KEYS.welcomeDismissed);
+    const wizDismissed = readStorageFlag(UX_STORAGE_KEYS.wizardDismissed);
+    const neverAuto = readStorageFlag(UX_STORAGE_KEYS.tourNeverAuto);
+    setExperienceLevel(level);
+    setWelcomeDismissed(level === "advanced" ? true : wDismissed);
+    setWizardOpen(level !== "advanced" && wDismissed && !wizDismissed);
+    setTourNeverAuto(neverAuto);
+    setUxReady(true);
+  }, []);
 
   // Clear JWT if connected wallet changes
   useEffect(() => {
@@ -126,9 +165,9 @@ export function KipuDashboard() {
         setDemoRecipientAddress(state.allowedRecipients[0]);
       }
     } catch (err) {
-      setBannerError(
-        err instanceof Error ? err.message : "Error leyendo VaultState"
-      );
+      const msg =
+        err instanceof Error ? err.message : "Error leyendo VaultState";
+      setBannerError(humanizeUiError(msg));
     } finally {
       setLoadingVault(false);
     }
@@ -177,8 +216,11 @@ export function KipuDashboard() {
     try {
       const res = await listAuditLogs(vault.address, jwtToken);
       setAuditEntries(res.items);
-    } catch {
-      // ignore transient polling failure
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.toLowerCase().includes("expirada") || msg.includes("401")) {
+        setJwtToken(null);
+      }
     }
   }, [jwtToken, vault]);
 
@@ -220,11 +262,7 @@ export function KipuDashboard() {
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "Error en autenticación SIWS";
-      setBannerError(
-        msg.toLowerCase().includes("rejected")
-          ? "Firma cancelada en Phantom. Haz clic en «Iniciar sesión» cuando estés listo."
-          : msg
-      );
+      setBannerError(humanizeUiError(msg));
     } finally {
       setSigningIn(false);
     }
@@ -245,11 +283,7 @@ export function KipuDashboard() {
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "Transacción rechazada";
-      setBannerError(
-        msg.toLowerCase().includes("rejected")
-          ? "Transacción cancelada en Phantom."
-          : msg
-      );
+      setBannerError(humanizeUiError(msg));
     } finally {
       setBusyAction(null);
     }
@@ -371,9 +405,9 @@ export function KipuDashboard() {
       );
       await refreshVault();
     } catch (err) {
-      setBannerError(
-        err instanceof Error ? err.message : "Error cambiando estado de Freeze"
-      );
+      const msg =
+        err instanceof Error ? err.message : "Error cambiando estado de Freeze";
+      setBannerError(humanizeUiError(msg));
     } finally {
       setFreezing(false);
     }
@@ -421,12 +455,16 @@ export function KipuDashboard() {
       await Promise.all([refreshVault(), refreshAudit()]);
       return res;
     } catch (err) {
-      const msg =
+      const rawMsg =
         err instanceof Error ? err.message : "Error ejecutando la intención";
-      setBannerError(msg);
+      if (rawMsg.toLowerCase().includes("expirada") || rawMsg.includes("401")) {
+        setJwtToken(null);
+      }
+      const friendly = humanizeUiError(rawMsg);
+      setBannerError(friendly);
       setMessages((prev) => [
         ...prev,
-        { id: `e-${Date.now()}`, role: "assistant", text: msg },
+        { id: `e-${Date.now()}`, role: "assistant", text: friendly },
       ]);
       return null;
     } finally {
@@ -448,12 +486,75 @@ export function KipuDashboard() {
       setPendingApproval(null);
       await handleSubmitIntent(lastRequest);
     } catch (err) {
-      setBannerError(
+      const msg =
         err instanceof Error
           ? err.message
-          : "No se pudo firmar add_recipient"
-      );
+          : "No se pudo firmar add_recipient";
+      setBannerError(humanizeUiError(msg));
       setSendingIntent(false);
+    }
+  };
+
+  const handleChangeExperienceLevel = (level: ExperienceLevel) => {
+    setExperienceLevel(level);
+    writeExperienceLevel(level);
+    if (level === "advanced") {
+      setWelcomeDismissed(true);
+      setWizardOpen(false);
+      setTourOpen(false);
+      writeStorageFlag(UX_STORAGE_KEYS.welcomeDismissed, true);
+    }
+  };
+
+  const handleStartSetup = () => {
+    writeStorageFlag(UX_STORAGE_KEYS.welcomeDismissed, true);
+    writeStorageFlag(UX_STORAGE_KEYS.wizardDismissed, false);
+    setWelcomeDismissed(true);
+    setWizardOpen(true);
+  };
+
+  const handleViewDemo = () => {
+    writeStorageFlag(UX_STORAGE_KEYS.welcomeDismissed, true);
+    setWelcomeDismissed(true);
+    setWizardOpen(false);
+    if (!readStorageFlag(UX_STORAGE_KEYS.tourNeverAuto)) {
+      setTourOpen(true);
+    }
+  };
+
+  const handleSkipAdvanced = () => {
+    writeExperienceLevel("advanced");
+    writeStorageFlag(UX_STORAGE_KEYS.welcomeDismissed, true);
+    writeStorageFlag(UX_STORAGE_KEYS.wizardDismissed, true);
+    writeStorageFlag(UX_STORAGE_KEYS.tourCompleted, true);
+    setExperienceLevel("advanced");
+    setWelcomeDismissed(true);
+    setWizardOpen(false);
+    setTourOpen(false);
+  };
+
+  const handleDismissWizard = () => {
+    writeStorageFlag(UX_STORAGE_KEYS.wizardDismissed, true);
+    setWizardOpen(false);
+  };
+
+  const handleCompleteWizardAndStartTour = () => {
+    writeStorageFlag(UX_STORAGE_KEYS.wizardDismissed, true);
+    setWizardOpen(false);
+    if (experienceLevel !== "advanced") {
+      setTourOpen(true);
+    }
+  };
+
+  const handleToggleNeverShowAuto = (val: boolean) => {
+    setTourNeverAuto(val);
+    writeStorageFlag(UX_STORAGE_KEYS.tourNeverAuto, val);
+  };
+
+  const handleCloseTour = (completed: boolean) => {
+    setTourOpen(false);
+    if (completed) {
+      writeStorageFlag(UX_STORAGE_KEYS.tourCompleted, true);
     }
   };
 
@@ -461,20 +562,35 @@ export function KipuDashboard() {
     connectedWallet && vault && connectedWallet === vault.owner
   );
   const hasFunds = Boolean(vault && vault.vaultTokenBalance > 0n);
-  const hasAllowlist = Boolean(vault && vault.recipientCount > 0);
+  const maxPerTxDisplay = vault
+    ? `${formatBaseUnitsAsUsdc(vault.maxPerTx)} Mock USDC`
+    : "—";
+  const dailyRemainingRaw = vault
+    ? vault.dailyLimit > vault.spentToday
+      ? vault.dailyLimit - vault.spentToday
+      : BigInt(0)
+    : BigInt(0);
+  const dailyRemainingDisplay = vault
+    ? `${formatBaseUnitsAsUsdc(dailyRemainingRaw)} Mock USDC`
+    : "—";
 
-  const flowSteps = [
-    { id: 1, label: "1. Conectar", done: Boolean(connectedWallet) },
-    { id: 2, label: "2. Crear bóveda", done: Boolean(vault) },
-    { id: 3, label: "3. Iniciar sesión", done: Boolean(jwtToken) },
-    { id: 4, label: "4. Depositar y allowlist", done: hasFunds && hasAllowlist },
-    {
-      id: 5,
-      label: "5. Demo en vivo",
-      done: Boolean(jwtToken && hasFunds && hasAllowlist && auditEntries.length > 0),
-    },
-  ];
-  const firstIncomplete = flowSteps.find((s) => !s.done)?.id ?? 5;
+  if (!uxReady) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-kipu-bg text-xs text-zinc-400">
+        Cargando experiencia KipuVault...
+      </div>
+    );
+  }
+
+  if (!welcomeDismissed && experienceLevel !== "advanced") {
+    return (
+      <WelcomeScreen
+        onStartSetup={handleStartSetup}
+        onViewDemo={handleViewDemo}
+        onSkipAdvanced={handleSkipAdvanced}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-kipu-bg text-zinc-100">
@@ -488,55 +604,49 @@ export function KipuDashboard() {
         onToggleFreeze={handleToggleFreeze}
         agentSolBalance={health?.agent_sol_balance ?? null}
         lowSolWarning={Boolean(health?.low_sol_warning)}
+        experienceLevel={experienceLevel}
+        onChangeExperienceLevel={handleChangeExperienceLevel}
+        onOpenHelp={() => setHelpOpen(true)}
+        showWizardButton={experienceLevel !== "advanced" && !wizardOpen}
+        onOpenWizard={() => {
+          writeStorageFlag(UX_STORAGE_KEYS.wizardDismissed, false);
+          setWizardOpen(true);
+        }}
       />
 
       <main className="mx-auto max-w-[1440px] space-y-3 px-4 py-3.5 sm:px-6">
-        {/* Guided Demo Day Stepper */}
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-kipu-border bg-kipu-card px-3.5 py-2.5">
-          <div className="flex flex-wrap items-center gap-2">
-            {flowSteps.map((step) => {
-              const isCurrent = step.id === firstIncomplete;
-              return (
-                <span
-                  key={step.id}
-                  className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium ${
-                    step.done
-                      ? "border-kipu-emerald/40 bg-kipu-emerald/10 text-kipu-emerald"
-                      : isCurrent
-                        ? "border-kipu-gold bg-kipu-gold/15 font-semibold text-kipu-gold"
-                        : "border-kipu-border bg-kipu-bg text-zinc-400"
-                  }`}
-                >
-                  <span>{step.done ? "✓" : "○"}</span>
-                  <span>{step.label}</span>
-                </span>
-              );
-            })}
-          </div>
+        <DashboardOverview
+          vault={vault}
+          loadingVault={loadingVault}
+          connectedWallet={connectedWallet}
+          isAuthenticated={Boolean(jwtToken)}
+          lowSolWarning={Boolean(health?.low_sol_warning)}
+          auditEntries={auditEntries}
+          experienceLevel={experienceLevel}
+        />
 
-          {firstIncomplete === 3 && vault && !jwtToken && (
-            <button
-              type="button"
-              disabled={signingIn}
-              onClick={() => void handleSignIn()}
-              className="rounded-md bg-kipu-gold px-3 py-1 text-xs font-semibold text-zinc-950 hover:bg-amber-400 disabled:opacity-50"
-            >
-              {signingIn ? "Firmando SIWS..." : "Firmar SIWS ahora →"}
-            </button>
-          )}
-          {firstIncomplete === 4 && (
-            <span className="text-xs font-medium text-kipu-gold">
-              Falta {!hasFunds ? "depositar Mock USDC" : ""}
-              {!hasFunds && !hasAllowlist ? " y " : ""}
-              {!hasAllowlist ? "agregar destinatario a allowlist" : ""} en Políticas
-            </span>
-          )}
-          {firstIncomplete === 5 && (
-            <span className="text-xs font-medium text-kipu-emerald">
-              Listo para presentar pasos 1 → 4 en Copilot
-            </span>
-          )}
-        </div>
+        {wizardOpen && experienceLevel !== "advanced" && (
+          <OnboardingWizard
+            connectedWallet={connectedWallet}
+            vault={vault}
+            isAuthenticated={Boolean(jwtToken)}
+            signingIn={signingIn}
+            onSignIn={handleSignIn}
+            mintInput={mintInput}
+            onChangeMintInput={setMintInput}
+            defaultAgentPubkey={health?.agent_pubkey ?? ""}
+            onInitializeVault={handleInitializeVault}
+            onUpdatePolicy={handleUpdatePolicy}
+            onAddRecipient={handleAddRecipient}
+            onDeposit={handleDeposit}
+            onToggleFreeze={handleToggleFreeze}
+            busyAction={busyAction}
+            freezing={freezing}
+            errorMessage={bannerError}
+            onDismissWizard={handleDismissWizard}
+            onCompleteAndStartTour={handleCompleteWizardAndStartTour}
+          />
+        )}
 
         {bannerError && (
           <div className="flex items-center justify-between rounded-lg border border-kipu-crimson/60 bg-kipu-crimson/10 px-4 py-2 text-xs text-red-200">
@@ -581,6 +691,7 @@ export function KipuDashboard() {
               onAddRecipient={handleAddRecipient}
               onRemoveRecipient={handleRemoveRecipient}
               busyAction={busyAction}
+              experienceLevel={experienceLevel}
             />
           </div>
 
@@ -604,15 +715,48 @@ export function KipuDashboard() {
               onDismissApproval={() => setPendingApproval(null)}
               sending={sendingIntent}
               messages={messages}
+              experienceLevel={experienceLevel}
+              maxPerTxDisplay={maxPerTxDisplay}
+              dailyRemainingDisplay={dailyRemainingDisplay}
+              allowedCount={vault?.recipientCount ?? 0}
             />
 
             <AuditLedger
               entries={auditEntries}
               onVerifyTx={(sig) => verifyAuditTx(sig)}
+              experienceLevel={experienceLevel}
             />
           </div>
         </div>
       </main>
+
+      <ProductTour
+        open={tourOpen}
+        neverShowAuto={tourNeverAuto}
+        onToggleNeverShowAuto={handleToggleNeverShowAuto}
+        onClose={handleCloseTour}
+      />
+
+      <HelpDrawer
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        onRestartTour={() => {
+          setHelpOpen(false);
+          setTourOpen(true);
+        }}
+        onOpenWizard={() => {
+          setHelpOpen(false);
+          writeStorageFlag(UX_STORAGE_KEYS.welcomeDismissed, true);
+          writeStorageFlag(UX_STORAGE_KEYS.wizardDismissed, false);
+          setWelcomeDismissed(true);
+          setWizardOpen(true);
+        }}
+        onOpenWelcome={() => {
+          setHelpOpen(false);
+          writeStorageFlag(UX_STORAGE_KEYS.welcomeDismissed, false);
+          setWelcomeDismissed(false);
+        }}
+      />
     </div>
   );
 }

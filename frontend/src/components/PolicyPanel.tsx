@@ -19,6 +19,8 @@ import {
   truncateMiddle,
 } from "@/lib/format";
 import type { DecodedVaultState } from "@/lib/kipuVault";
+import type { ExperienceLevel } from "@/lib/ux";
+import { InfoTooltip, SkeletonBlock } from "./InfoTooltip";
 
 interface PolicyPanelProps {
   mintInput: string;
@@ -44,6 +46,7 @@ interface PolicyPanelProps {
   onAddRecipient: (recipient: string) => Promise<void>;
   onRemoveRecipient: (recipient: string) => Promise<void>;
   busyAction: string | null;
+  experienceLevel: ExperienceLevel;
 }
 
 export function PolicyPanel({
@@ -61,6 +64,7 @@ export function PolicyPanel({
   onAddRecipient,
   onRemoveRecipient,
   busyAction,
+  experienceLevel,
 }: PolicyPanelProps) {
   const [initAgent, setInitAgent] = useState(defaultAgentPubkey);
   const [initMaxPerTx, setInitMaxPerTx] = useState("10");
@@ -110,7 +114,10 @@ export function PolicyPanel({
 
   let canDeposit = false;
   try {
-    canDeposit = isOwner && busyAction === null && parseUsdcToBaseUnits(depositAmount) > 0n;
+    canDeposit =
+      isOwner &&
+      busyAction === null &&
+      parseUsdcToBaseUnits(depositAmount) > 0n;
   } catch {
     canDeposit = false;
   }
@@ -154,13 +161,19 @@ export function PolicyPanel({
       : 0;
 
   return (
-    <aside className="flex flex-col gap-2.5 rounded-xl border border-kipu-border bg-kipu-card p-3.5">
+    <aside
+      data-tour="policies"
+      className="flex flex-col gap-2.5 rounded-xl border border-kipu-border bg-kipu-card p-3.5"
+    >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Shield className="h-4 w-4 text-kipu-gold" />
           <h2 className="text-sm font-semibold text-zinc-100">
             Políticas On-Chain
           </h2>
+          {experienceLevel !== "advanced" && (
+            <InfoTooltip text="Reglas guardadas en el contrato de Solana. Ni la IA ni el servidor pueden saltárselas." />
+          )}
         </div>
         <button
           type="button"
@@ -177,9 +190,14 @@ export function PolicyPanel({
 
       {/* Mint selector */}
       <div className="rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
-        <label className="mb-1 block text-xs font-medium text-zinc-300">
-          Mint Mock USDC (SPL clásico)
-        </label>
+        <div className="mb-1 flex items-center justify-between">
+          <label className="text-xs font-medium text-zinc-300">
+            Mint Mock USDC (SPL clásico)
+          </label>
+          {experienceLevel === "beginner" && (
+            <InfoTooltip text="Identificador del token de prueba en Solana Devnet usado por tu bóveda." />
+          )}
+        </div>
         <input
           type="text"
           value={mintInput}
@@ -202,7 +220,13 @@ export function PolicyPanel({
         )}
       </div>
 
-      {!vault ? (
+      {!vault && loadingVault ? (
+        <div className="space-y-2 rounded-lg border border-kipu-border bg-kipu-bg p-3">
+          <SkeletonBlock className="h-4 w-3/4" />
+          <SkeletonBlock className="h-8 w-full" />
+          <SkeletonBlock className="h-8 w-full" />
+        </div>
+      ) : !vault ? (
         <div className="rounded-lg border border-kipu-gold/30 bg-kipu-bg p-2.5">
           <p className="mb-2 text-xs font-medium text-kipu-gold">
             No existe bóveda para este owner + mint. Créala en 1 clic:
@@ -268,11 +292,15 @@ export function PolicyPanel({
         </div>
       ) : (
         <>
-          {/* Live policy bars */}
           <div className="space-y-2 rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
             <div>
               <div className="mb-1 flex justify-between text-xs">
-                <span className="text-zinc-300">Ventana 24h (fija) / Límite diario</span>
+                <span className="inline-flex items-center gap-1 text-zinc-300">
+                  Ventana 24h (fija) / Límite diario
+                  {experienceLevel === "beginner" && (
+                    <InfoTooltip text="Gasto acumulado en las últimas 24h frente al máximo diario permitido." />
+                  )}
+                </span>
                 <span className="font-mono text-zinc-100">
                   {formatBaseUnitsAsUsdc(vault.spentToday, 2)} /{" "}
                   {formatBaseUnitsAsUsdc(vault.dailyLimit, 2)} Mock USDC
@@ -290,7 +318,12 @@ export function PolicyPanel({
 
             <div>
               <div className="mb-1 flex justify-between text-xs">
-                <span className="text-zinc-300">Tope por transacción</span>
+                <span className="inline-flex items-center gap-1 text-zinc-300">
+                  Tope por transacción
+                  {experienceLevel === "beginner" && (
+                    <InfoTooltip text="Monto máximo que el agente puede transferir en una sola operación." />
+                  )}
+                </span>
                 <span className="font-mono text-kipu-gold">
                   {formatBaseUnitsAsUsdc(vault.maxPerTx, 2)} Mock USDC
                 </span>
@@ -330,7 +363,6 @@ export function PolicyPanel({
             </div>
           </div>
 
-          {/* Deposit / Withdraw */}
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-lg border border-kipu-border bg-kipu-bg p-2">
               <label className="mb-1 block text-xs text-zinc-300">
@@ -355,7 +387,7 @@ export function PolicyPanel({
 
             <div className="rounded-lg border border-kipu-border bg-kipu-bg p-2">
               <label className="mb-1 block text-xs text-zinc-300">
-                Retirar (Mock USDC)
+                Retirar (siempre libre)
               </label>
               <input
                 type="text"
@@ -375,12 +407,17 @@ export function PolicyPanel({
             </div>
           </div>
 
-          {/* Allowlist */}
-          <div className="rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
+          <div
+            data-tour="allowlist"
+            className="rounded-lg border border-kipu-border bg-kipu-bg p-2.5"
+          >
             <div className="mb-2 flex items-center justify-between">
               <span className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-200">
                 <Users className="h-3.5 w-3.5 text-kipu-gold" />
                 Allowlist de destinatarios
+                {experienceLevel !== "advanced" && (
+                  <InfoTooltip text="Solo las direcciones en esta lista pueden recibir pagos del agente." />
+                )}
               </span>
               <span className="font-mono text-xs text-zinc-300">
                 {vault.recipientCount}/8
@@ -412,7 +449,8 @@ export function PolicyPanel({
 
             {vault.allowedRecipients.length === 0 ? (
               <p className="text-xs text-zinc-400">
-                Sin destinatarios autorizados aún.
+                Sin destinatarios autorizados aún. Agrega una wallet confiable
+                para habilitar envíos.
               </p>
             ) : (
               <ul className="space-y-1.5">
@@ -444,8 +482,11 @@ export function PolicyPanel({
             )}
           </div>
 
-          {/* Update policy */}
-          <details className="rounded-lg border border-kipu-border bg-kipu-bg p-2.5">
+          <details
+            key={`policy-details-${experienceLevel}`}
+            open={experienceLevel === "advanced" ? true : undefined}
+            className="rounded-lg border border-kipu-border bg-kipu-bg p-2.5"
+          >
             <summary className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-zinc-300">
               <Settings2 className="h-3.5 w-3.5 text-kipu-gold" />
               Actualizar políticas
@@ -456,7 +497,7 @@ export function PolicyPanel({
                 value={policyAgent}
                 onChange={(e) => setPolicyAgent(e.target.value)}
                 placeholder="Nuevo agente (opcional)"
-                className="w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100 placeholder:text-zinc-600"
+                className="w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100 placeholder:text-zinc-500"
               />
               <div className="grid grid-cols-2 gap-2">
                 <input
@@ -464,14 +505,14 @@ export function PolicyPanel({
                   value={policyMaxPerTx}
                   onChange={(e) => setPolicyMaxPerTx(e.target.value)}
                   placeholder="Max/tx (Mock USDC)"
-                  className="w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100 placeholder:text-zinc-600"
+                  className="w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100 placeholder:text-zinc-500"
                 />
                 <input
                   type="text"
                   value={policyDailyLimit}
                   onChange={(e) => setPolicyDailyLimit(e.target.value)}
                   placeholder="Diario (Mock USDC)"
-                  className="w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100 placeholder:text-zinc-600"
+                  className="w-full rounded border border-kipu-border bg-kipu-card px-2 py-1 font-mono text-xs text-zinc-100 placeholder:text-zinc-500"
                 />
               </div>
               <button

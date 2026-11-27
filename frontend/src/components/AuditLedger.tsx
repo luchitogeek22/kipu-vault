@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   CheckCircle2,
   ExternalLink,
@@ -19,10 +19,12 @@ import {
   formatBaseUnitsAsUsdc,
   truncateMiddle,
 } from "@/lib/format";
+import type { ExperienceLevel } from "@/lib/ux";
 
 interface AuditLedgerProps {
   entries: AuditLogEntry[];
   onVerifyTx: (txSignature: string) => Promise<AuditVerifyResponse>;
+  experienceLevel: ExperienceLevel;
 }
 
 function statusBadgeClasses(status: AuditStatus): string {
@@ -38,13 +40,45 @@ function statusBadgeClasses(status: AuditStatus): string {
   return "border-zinc-700 bg-zinc-800 text-zinc-300";
 }
 
-export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
+function statusPlainLabel(status: AuditStatus): string {
+  switch (status) {
+    case "EXECUTED":
+      return "Ejecutada en Solana";
+    case "BLOCKED_ONCHAIN":
+      return "Bloqueada por contrato";
+    case "BLOCKED_PREFLIGHT":
+      return "Detenida antes de enviar";
+    case "REJECTED_BY_AI":
+      return "Rechazada por análisis IA";
+    case "NEEDS_RECIPIENT_APPROVAL":
+      return "Requiere autorizar destino";
+    case "FAILED_INFRA":
+      return "Error de red / RPC";
+    default:
+      return "En proceso";
+  }
+}
+
+export function AuditLedger({
+  entries,
+  onVerifyTx,
+  experienceLevel,
+}: AuditLedgerProps) {
   const [verifyingSig, setVerifyingSig] = useState<string | null>(null);
   const [verifyModal, setVerifyModal] = useState<{
     txSignature: string;
     result: AuditVerifyResponse;
   } | null>(null);
   const [verifyError, setVerifyError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!verifyModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setVerifyModal(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [verifyModal]);
 
   const handleVerify = async (txSignature: string) => {
     setVerifyingSig(txSignature);
@@ -62,13 +96,23 @@ export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
   };
 
   return (
-    <section className="rounded-xl border border-kipu-border bg-kipu-card p-3.5">
+    <section
+      data-tour="ledger"
+      className="rounded-xl border border-kipu-border bg-kipu-card p-3.5"
+    >
       <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-kipu-border pb-2.5">
         <div className="flex items-center gap-2">
           <FileSearch className="h-4 w-4 text-kipu-gold" />
-          <h2 className="text-sm font-semibold text-zinc-100">
-            Kipu Audit Ledger
-          </h2>
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-100">
+              Kipu Audit Ledger
+            </h2>
+            {experienceLevel === "beginner" && (
+              <p className="text-[11px] text-zinc-400">
+                Historial verificable de cada decisión, bloqueo y pago en Solana.
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="inline-flex items-center gap-1.5 rounded-md border border-kipu-gold/30 bg-kipu-gold/5 px-2.5 py-1 text-[11px] text-amber-200">
@@ -104,7 +148,9 @@ export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
                   colSpan={5}
                   className="py-6 text-center text-xs text-zinc-300"
                 >
-                  Aún no hay registros de auditoría para esta bóveda.
+                  Aún no hay registros de auditoría para esta bóveda. Prueba
+                  cualquier ejemplo en Kipu AI Copilot para ver aquí la huella
+                  SHA-256 y su verificación on-chain.
                 </td>
               </tr>
             ) : (
@@ -120,7 +166,9 @@ export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
                             entry.status
                           )}`}
                         >
-                          {entry.status}
+                          {experienceLevel === "beginner"
+                            ? statusPlainLabel(entry.status)
+                            : entry.status}
                         </span>
                         {isPreflight && (
                           <span className="rounded border border-kipu-crimson/40 bg-kipu-bg px-1.5 py-0.5 text-xs text-red-200">
@@ -170,7 +218,9 @@ export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
                     <td className="py-2 text-right">
                       <button
                         type="button"
-                        disabled={!hasSignature || verifyingSig === entry.tx_signature}
+                        disabled={
+                          !hasSignature || verifyingSig === entry.tx_signature
+                        }
                         onClick={() =>
                           entry.tx_signature &&
                           void handleVerify(entry.tx_signature)
@@ -196,10 +246,18 @@ export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
         </table>
       </div>
 
-      {/* Side-by-side hash verification modal */}
       {verifyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
-          <div className="w-full max-w-2xl rounded-xl border border-kipu-border bg-kipu-card p-5 shadow-2xl">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Verificación de integridad contra Solana"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+          onClick={() => setVerifyModal(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-2xl rounded-xl border border-kipu-border bg-kipu-card p-5 shadow-2xl"
+          >
             <div className="mb-3 flex items-center justify-between border-b border-kipu-border pb-3">
               <div className="flex items-center gap-2">
                 {verifyModal.result.verified ? (
@@ -224,7 +282,7 @@ export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
 
             <div className="mb-4 grid gap-3 sm:grid-cols-2">
               <div className="rounded-lg border border-kipu-border bg-kipu-bg p-3">
-                <span className="mb-1 block text-[10px] uppercase tracking-wider text-zinc-500">
+                <span className="mb-1 block text-[10px] uppercase tracking-wider text-zinc-400">
                   Hash off-chain (SHA-256 canonical_json)
                 </span>
                 <p
@@ -240,7 +298,7 @@ export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
               </div>
 
               <div className="rounded-lg border border-kipu-border bg-kipu-bg p-3">
-                <span className="mb-1 block text-[10px] uppercase tracking-wider text-zinc-500">
+                <span className="mb-1 block text-[10px] uppercase tracking-wider text-zinc-400">
                   Hash on-chain (data de agent_execute)
                 </span>
                 <p
@@ -258,19 +316,21 @@ export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
 
             <div className="mb-4 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
               <div className="rounded border border-kipu-border bg-kipu-bg p-2">
-                <span className="block text-[10px] text-zinc-500">Monto</span>
+                <span className="block text-[10px] text-zinc-400">Monto</span>
                 <span className="font-mono text-zinc-100">
                   {verifyModal.result.amount_match ? "Coincide" : "Difiere"}
                 </span>
               </div>
               <div className="rounded border border-kipu-border bg-kipu-bg p-2">
-                <span className="block text-[10px] text-zinc-500">Bóveda</span>
+                <span className="block text-[10px] text-zinc-400">Bóveda</span>
                 <span className="font-mono text-zinc-100">
                   {verifyModal.result.vault_match ? "Coincide" : "Difiere"}
                 </span>
               </div>
               <div className="rounded border border-kipu-border bg-kipu-bg p-2">
-                <span className="block text-[10px] text-zinc-500">Tx On-Chain</span>
+                <span className="block text-[10px] text-zinc-400">
+                  Tx On-Chain
+                </span>
                 <span className="font-mono text-zinc-100">
                   {verifyModal.result.tx_succeeded
                     ? "Exitosa"
@@ -278,9 +338,13 @@ export function AuditLedger({ entries, onVerifyTx }: AuditLedgerProps) {
                 </span>
               </div>
               <div className="rounded border border-kipu-border bg-kipu-bg p-2">
-                <span className="block text-[10px] text-zinc-500">JSON Canónico</span>
+                <span className="block text-[10px] text-zinc-400">
+                  JSON Canónico
+                </span>
                 <span className="font-mono text-zinc-100">
-                  {verifyModal.result.canonical_shape_valid ? "Íntegro" : "Alterado"}
+                  {verifyModal.result.canonical_shape_valid
+                    ? "Íntegro"
+                    : "Alterado"}
                 </span>
               </div>
             </div>

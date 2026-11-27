@@ -1,10 +1,19 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { KeyRound, ShieldAlert, ShieldCheck, Snowflake } from "lucide-react";
+import {
+  HelpCircle,
+  KeyRound,
+  ShieldAlert,
+  ShieldCheck,
+  SlidersHorizontal,
+  Snowflake,
+  Wrench,
+} from "lucide-react";
 import { formatBaseUnitsAsUsdc } from "@/lib/format";
 import type { DecodedVaultState } from "@/lib/kipuVault";
+import { EXPERIENCE_LEVEL_META, type ExperienceLevel } from "@/lib/ux";
 
 const WalletMultiButton = dynamic(
   async () =>
@@ -22,6 +31,11 @@ interface TopBarProps {
   onToggleFreeze: () => Promise<void>;
   agentSolBalance: string | null;
   lowSolWarning: boolean;
+  experienceLevel: ExperienceLevel;
+  onChangeExperienceLevel: (level: ExperienceLevel) => void;
+  onOpenHelp: () => void;
+  showWizardButton: boolean;
+  onOpenWizard: () => void;
 }
 
 export function TopBar({
@@ -34,12 +48,40 @@ export function TopBar({
   onToggleFreeze,
   agentSolBalance,
   lowSolWarning,
+  experienceLevel,
+  onChangeExperienceLevel,
+  onOpenHelp,
+  showWizardButton,
+  onOpenWizard,
 }: TopBarProps) {
   const [mounted, setMounted] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (
+        settingsRef.current &&
+        !settingsRef.current.contains(e.target as Node)
+      ) {
+        setSettingsOpen(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSettingsOpen(false);
+    };
+    window.addEventListener("mousedown", handleOutside);
+    window.addEventListener("keydown", handleKey);
+    return () => {
+      window.removeEventListener("mousedown", handleOutside);
+      window.removeEventListener("keydown", handleKey);
+    };
+  }, [settingsOpen]);
 
   const isOwner = Boolean(
     connectedWallet && vault && connectedWallet === vault.owner
@@ -80,9 +122,11 @@ export function TopBar({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           {agentSolBalance !== null && (
             <div
+              data-tour="agent-sol"
+              title="Saldo SOL del agente operativo para cubrir comisiones de transacción en Solana Devnet"
               className={`rounded-lg border px-3 py-1.5 font-mono text-xs ${
                 lowSolWarning
                   ? "border-kipu-crimson/60 bg-kipu-crimson/10 text-kipu-crimson"
@@ -169,6 +213,86 @@ export function TopBar({
               </button>
             </div>
           )}
+
+          {showWizardButton && (
+            <button
+              type="button"
+              onClick={onOpenWizard}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-kipu-border bg-kipu-bg px-2.5 py-2 text-xs font-medium text-zinc-200 transition hover:border-kipu-gold/60 hover:text-kipu-gold"
+            >
+              <Wrench className="h-3.5 w-3.5 text-kipu-gold" />
+              <span className="hidden sm:inline">Asistente</span>
+            </button>
+          )}
+
+          {/* Experience level configuration menu */}
+          <div ref={settingsRef} className="relative">
+            <button
+              type="button"
+              aria-expanded={settingsOpen}
+              aria-haspopup="menu"
+              onClick={() => setSettingsOpen((prev) => !prev)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-kipu-border bg-kipu-bg px-2.5 py-2 text-xs font-medium text-zinc-200 transition hover:border-kipu-gold/60"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5 text-kipu-gold" />
+              <span className="hidden md:inline">
+                {EXPERIENCE_LEVEL_META[experienceLevel].label}
+              </span>
+            </button>
+
+            {settingsOpen && (
+              <div
+                role="menu"
+                aria-label="Nivel de experiencia"
+                className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-kipu-border bg-kipu-card p-2 shadow-2xl"
+              >
+                <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                  Nivel de interfaz
+                </p>
+                {(
+                  ["beginner", "intermediate", "advanced"] as ExperienceLevel[]
+                ).map((lvl) => {
+                  const meta = EXPERIENCE_LEVEL_META[lvl];
+                  const active = lvl === experienceLevel;
+                  return (
+                    <button
+                      key={lvl}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={active}
+                      onClick={() => {
+                        onChangeExperienceLevel(lvl);
+                        setSettingsOpen(false);
+                      }}
+                      className={`mt-1 w-full rounded-lg border px-2.5 py-2 text-left transition ${
+                        active
+                          ? "border-kipu-gold/60 bg-kipu-gold/15 text-zinc-100"
+                          : "border-transparent text-zinc-300 hover:bg-kipu-bg"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-xs font-semibold">
+                        <span>{meta.label}</span>
+                        {active && <span className="text-kipu-gold">✓</span>}
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-zinc-400">
+                        {meta.shortDesc}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Permanent Contextual Help button */}
+          <button
+            type="button"
+            onClick={onOpenHelp}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-kipu-gold/40 bg-kipu-gold/10 px-3 py-2 text-xs font-semibold text-kipu-gold transition hover:bg-kipu-gold/20"
+          >
+            <HelpCircle className="h-3.5 w-3.5" />
+            Ayuda
+          </button>
 
           {mounted ? (
             <WalletMultiButton />
