@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import {
+  ArrowLeft,
   HelpCircle,
   KeyRound,
   ShieldCheck,
@@ -33,6 +34,7 @@ interface TopBarProps {
   experienceLevel: ExperienceLevel;
   onChangeExperienceLevel: (level: ExperienceLevel) => void;
   onOpenHelp: () => void;
+  onOpenWelcome: () => void;
   showWizardButton: boolean;
   onOpenWizard: () => void;
 }
@@ -50,6 +52,7 @@ export function TopBar({
   experienceLevel,
   onChangeExperienceLevel,
   onOpenHelp,
+  onOpenWelcome,
   showWizardButton,
   onOpenWizard,
 }: TopBarProps) {
@@ -90,14 +93,23 @@ export function TopBar({
     <header className="border-b border-kipu-border bg-kipu-card/95 shadow-lg shadow-black/20 backdrop-blur">
       <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-kipu-gold/40 bg-kipu-gold/10 text-kipu-gold">
+          <button
+            type="button"
+            onClick={onOpenWelcome}
+            title="Volver a la landing principal"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-kipu-gold/40 bg-kipu-gold/10 text-kipu-gold transition hover:border-kipu-gold"
+          >
             <ShieldCheck className="h-5 w-5" />
-          </div>
+          </button>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="font-display text-lg font-bold tracking-tight text-white">
+              <button
+                type="button"
+                onClick={onOpenWelcome}
+                className="font-display text-lg font-bold tracking-tight text-white transition hover:text-kipu-gold"
+              >
                 kipuvault<span className="text-kipu-gold">.</span>
-              </h1>
+              </button>
               <span className="inline-flex items-center gap-1 rounded-full border border-zinc-700 bg-kipu-bg px-2 py-0.5 font-mono text-[11px] font-medium text-zinc-200">
                 <span className="h-1.5 w-1.5 rounded-full bg-kipu-emerald" />
                 Solana Devnet
@@ -274,6 +286,16 @@ export function TopBar({
               </div>
             )}
           </div>
+
+          {/* Return to Landing / Welcome */}
+          <button
+            type="button"
+            onClick={onOpenWelcome}
+            className="inline-flex items-center gap-1 rounded-lg border border-kipu-border bg-kipu-bg px-2.5 py-2 text-xs font-medium text-zinc-200 transition hover:border-kipu-gold/50 hover:text-kipu-gold lg:hidden"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>Landing</span>
+          </button>
 
           {/* Permanent Contextual Help button */}
           <button

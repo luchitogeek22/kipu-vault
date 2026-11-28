@@ -92,11 +92,11 @@ export function KipuDashboard() {
     lastRequest: Omit<ExecuteIntentRequest, "vault_address">;
   } | null>(null);
 
-  // UX / Onboarding state (hydrated client-side to avoid SSR mismatch)
+  // UX / Onboarding state (root "/" always opens Landing Page by default; ?app=1 jumps straight to Panel)
   const [uxReady, setUxReady] = useState(false);
   const [experienceLevel, setExperienceLevel] =
     useState<ExperienceLevel>("beginner");
-  const [welcomeDismissed, setWelcomeDismissed] = useState(true);
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const [tourNeverAuto, setTourNeverAuto] = useState(false);
@@ -112,12 +112,18 @@ export function KipuDashboard() {
 
   useEffect(() => {
     const level = readExperienceLevel();
-    const wDismissed = readStorageFlag(UX_STORAGE_KEYS.welcomeDismissed);
     const wizDismissed = readStorageFlag(UX_STORAGE_KEYS.wizardDismissed);
     const neverAuto = readStorageFlag(UX_STORAGE_KEYS.tourNeverAuto);
+    const params =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search)
+        : null;
+    const directPanel =
+      params?.get("app") === "1" || params?.get("panel") === "1";
+
     setExperienceLevel(level);
-    setWelcomeDismissed(level === "advanced" ? true : wDismissed);
-    setWizardOpen(level !== "advanced" && wDismissed && !wizDismissed);
+    setWelcomeDismissed(directPanel);
+    setWizardOpen(directPanel && level !== "advanced" && !wizDismissed);
     setTourNeverAuto(neverAuto);
     setUxReady(true);
   }, []);
@@ -648,6 +654,10 @@ export function KipuDashboard() {
           experienceLevel={experienceLevel}
           onChangeExperienceLevel={handleChangeExperienceLevel}
           onOpenHelp={() => setHelpOpen(true)}
+          onOpenWelcome={() => {
+            writeStorageFlag(UX_STORAGE_KEYS.welcomeDismissed, false);
+            setWelcomeDismissed(false);
+          }}
           showWizardButton={experienceLevel !== "advanced" && !wizardOpen}
           onOpenWizard={() => {
             writeStorageFlag(UX_STORAGE_KEYS.wizardDismissed, false);
