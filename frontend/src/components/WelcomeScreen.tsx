@@ -24,7 +24,6 @@ import {
   Snowflake,
   Sparkles,
   TrendingUp,
-  UserCheck,
   Wallet,
 } from "lucide-react";
 import { FRONTEND_CONFIG } from "@/lib/config";
@@ -45,6 +44,7 @@ interface WelcomeScreenProps {
 }
 
 const GITHUB_URL = "https://github.com/luchitogeek22/kipu-vault";
+const DEMO_VIDEO_URL = process.env.NEXT_PUBLIC_DEMO_VIDEO_URL || "#demo";
 
 /** Inline git repository SVG icon (lucide-react in this project omits Github). */
 function GitRepoIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
@@ -67,20 +67,20 @@ function GitRepoIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
 
 const ANCHOR_SNIPPET = `import { Program } from "@coral-xyz/anchor";
 
-// El agente solo firma costos de red (SOL); la custodia sigue en la bóveda PDA
+// Agent only signs network fees (SOL); custody stays inside the PDA vault
 await program.methods
-  .agentExecute(new BN(5_000_000)) // 5 Mock USDC (6 decimales)
+  .agentExecute(new BN(5_000_000)) // 5 Mock USDC (6 decimals)
   .accounts({
     agent: agentKeypair.publicKey,
     vault: vaultPda,
     vaultTokenAccount,
-    recipientTokenAccount, // Validado contra vault.allowlist en el contrato
+    recipientTokenAccount, // Enforced against vault.allowlist on-chain
     tokenProgram: TOKEN_PROGRAM_ID,
   })
   .signers([agentKeypair])
   .rpc();`;
 
-const CLIENT_SNIPPET = `// 1) Verifica intención del agente y registra SHA-256 on-chain
+const CLIENT_SNIPPET = `// 1) Evaluate agent intent and anchor SHA-256 decision hash on Devnet
 const res = await fetch(\`\${API_URL}/api/agent/execute\`, {
   method: "POST",
   headers: {
@@ -89,13 +89,13 @@ const res = await fetch(\`\${API_URL}/api/agent/execute\`, {
   },
   body: JSON.stringify({
     vault_pda: vaultPda,
-    prompt: "Paga 5 Mock USDC por uso de API",
+    prompt: "Pay 5 Mock USDC for API usage",
     red_team: false,
   }),
 });
 
 const { status, tx_signature, decision_hash } = await res.json();
-// 2) Cualquier tercero puede validar el hash público:
+// 2) Anyone can verify the public hash against Solana Devnet:
 // GET /api/audit/verify/\${tx_signature}`;
 
 const API_ENDPOINTS = [
@@ -142,7 +142,7 @@ export function WelcomeScreen({
   onViewDemo,
   onSkipAdvanced,
 }: WelcomeScreenProps) {
-  const [lang, setLang] = useState<LandingLang>("es");
+  const [lang, setLang] = useState<LandingLang>("en");
   const isEs = lang === "es";
 
   // Interactive hero simulator state
@@ -378,7 +378,7 @@ export function WelcomeScreen({
 
           <nav
             aria-label={isEs ? "Navegación principal" : "Primary navigation"}
-            className="hidden items-center gap-5 text-xs font-medium text-zinc-400 lg:flex"
+            className="hidden items-center gap-4 text-xs font-medium text-zinc-400 xl:flex"
           >
             {navItems.map((item) => (
               <a
@@ -392,6 +392,16 @@ export function WelcomeScreen({
           </nav>
 
           <div className="flex items-center gap-2">
+            <a
+              href={DEMO_VIDEO_URL}
+              target={DEMO_VIDEO_URL.startsWith("http") ? "_blank" : undefined}
+              rel={DEMO_VIDEO_URL.startsWith("http") ? "noreferrer" : undefined}
+              className="hidden items-center gap-1.5 rounded-lg border border-kipu-border bg-kipu-card px-2.5 py-1.5 text-xs font-medium text-zinc-200 transition-colors hover:border-kipu-gold/50 hover:text-kipu-gold sm:inline-flex"
+            >
+              <Play className="h-3.5 w-3.5 text-kipu-gold" />
+              <span>Demo Video</span>
+            </a>
+
             <a
               href={GITHUB_URL}
               target="_blank"
@@ -486,18 +496,17 @@ export function WelcomeScreen({
                 onClick={onStartSetup}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-kipu-gold px-5 py-3 text-sm font-semibold text-zinc-950 shadow-[0_8px_24px_-6px_rgba(245,158,11,0.45)] transition-all hover:bg-amber-400"
               >
-                <span>{isEs ? "Configurar mi bóveda" : "Configure Vault"}</span>
+                <span>{isEs ? "Configurar mi bóveda" : "Configure my vault"}</span>
                 <ArrowRight className="h-4 w-4" />
               </button>
 
-              <button
-                type="button"
-                onClick={onViewDemo}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-kipu-border bg-kipu-card px-5 py-3 text-sm font-medium text-kipu-text transition-colors hover:border-zinc-600 hover:bg-zinc-800/80"
+              <a
+                href="#developers"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-kipu-border bg-kipu-card/80 px-5 py-3 text-sm font-medium text-kipu-text transition-colors hover:border-zinc-600 hover:bg-zinc-800/80"
               >
-                <Play className="h-4 w-4 text-kipu-emerald" />
-                <span>{isEs ? "Probar Sandbox sin wallet" : "Try Sandbox (no wallet)"}</span>
-              </button>
+                <Code2 className="h-4 w-4 text-kipu-emerald" />
+                <span>{isEs ? "Quickstart SDK" : "Quickstart SDK"}</span>
+              </a>
             </div>
 
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-kipu-border/80 pt-4 text-xs text-zinc-400">
@@ -721,17 +730,34 @@ export function WelcomeScreen({
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-2.5 text-[11px]">
-                  <span className="font-mono text-zinc-400">
-                    {isEs ? "Prueba verificada en Devnet:" : "Verified Devnet proof:"}{" "}
-                    <strong className="text-zinc-200">{activeProof.instruction}</strong>
+                  <span
+                    className={`font-mono ${
+                      simStatus === "blocked"
+                        ? "text-red-300"
+                        : simStatus === "freeze"
+                          ? "text-sky-300"
+                          : "text-emerald-300"
+                    }`}
+                  >
+                    {simStatus === "allowed"
+                      ? isEs
+                        ? "Ejecución verificada en Devnet: AgentExecute"
+                        : "Verified on-chain execution (Devnet): AgentExecute"
+                      : simStatus === "freeze"
+                        ? isEs
+                          ? "Bloqueo verificado en Devnet: EmergencyFreeze activo"
+                          : "Verified on-chain freeze (Devnet): EmergencyFreeze active"
+                        : isEs
+                          ? "Rechazo verificado en Devnet: Program Error Instruction #2 Failed"
+                          : "Verified on-chain rejection (Devnet): Program Error Instruction #2 Failed"}
                   </span>
                   <a
                     href={explorerTxUrl(activeProof.signature)}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1 font-mono text-kipu-gold hover:underline"
+                    className="inline-flex items-center gap-1 rounded border border-white/10 bg-kipu-bg/60 px-2 py-0.5 font-mono text-kipu-gold transition-colors hover:border-kipu-gold/50 hover:underline"
                   >
-                    <span>{truncateMiddle(activeProof.signature, 6, 5)}</span>
+                    <span>{truncateMiddle(activeProof.signature, 6, 4)}</span>
                     <ExternalLink className="h-3 w-3" />
                   </a>
                 </div>
@@ -1180,14 +1206,14 @@ export function WelcomeScreen({
         </div>
       </section>
 
-      {/* SECTION 8: FINAL CTA */}
-      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
+      {/* SECTION 8: DEMO & FINAL CTA */}
+      <section id="demo" className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
         <Reveal>
           <div className="kipu-card-glow relative overflow-hidden rounded-3xl border border-kipu-gold/30 p-6 sm:p-10">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="max-w-2xl space-y-2.5">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-kipu-gold">
-                  {isEs ? "08 · Empieza ahora" : "08 · Get started"}
+                  {isEs ? "08 · Demo & Empieza ahora" : "08 · Demo & Get started"}
                 </p>
                 <h2 className="font-display text-2xl font-bold tracking-tight text-kipu-text sm:text-3xl">
                   {isEs
@@ -1196,8 +1222,8 @@ export function WelcomeScreen({
                 </h2>
                 <p className="text-sm text-zinc-300">
                   {isEs
-                    ? "Despliega tu bóveda en Devnet con Phantom o explora todos los escenarios de bloqueo al instante en el Sandbox sin firmar nada."
-                    : "Create your Devnet vault with Phantom or test every block scenario right away in the no-wallet Sandbox."}
+                    ? "Despliega tu bóveda en Devnet con Phantom o explora todos los escenarios de bloqueo al instante en el Sandbox interactivo sin firmar transacciones."
+                    : "Create your Devnet vault with Phantom or walk through every live Red-Team block scenario right away inside the interactive no-wallet Sandbox."}
                 </p>
               </div>
 
@@ -1208,15 +1234,15 @@ export function WelcomeScreen({
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-kipu-gold px-5 py-3 text-sm font-semibold text-zinc-950 shadow-[0_8px_24px_-6px_rgba(245,158,11,0.45)] transition-all hover:bg-amber-400"
                 >
                   <Wallet className="h-4 w-4" />
-                  <span>{isEs ? "Configurar bóveda en Devnet" : "Launch Vault Setup"}</span>
+                  <span>{isEs ? "Configurar bóveda en Devnet" : "Configure my vault"}</span>
                 </button>
                 <button
                   type="button"
                   onClick={onViewDemo}
                   className="inline-flex items-center justify-center gap-2 rounded-xl border border-kipu-border bg-kipu-bg px-5 py-3 text-sm font-medium text-kipu-text transition-colors hover:border-zinc-600"
                 >
-                  <UserCheck className="h-4 w-4 text-kipu-emerald" />
-                  <span>{isEs ? "Abrir Sandbox interactivo" : "Open Sandbox"}</span>
+                  <Play className="h-4 w-4 text-kipu-emerald" />
+                  <span>{isEs ? "Abrir Sandbox interactivo" : "Launch Live Sandbox"}</span>
                 </button>
               </div>
             </div>
@@ -1226,35 +1252,43 @@ export function WelcomeScreen({
 
       {/* Footer */}
       <footer className="border-t border-kipu-border bg-kipu-bg/95">
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-6 text-xs text-zinc-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold text-zinc-300">KipuVault</span>
-            <span>·</span>
-            <span>
-              {isEs
-                ? "Solana Devnet · Demo educativa y de hackathon (no auditada en mainnet)"
-                : "Solana Devnet · Hackathon & research prototype (unaudited, Devnet only)"}
-            </span>
+        <div className="mx-auto max-w-6xl space-y-3 px-4 py-6 text-xs text-zinc-500 sm:px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-semibold text-zinc-300">KipuVault</span>
+              <span>·</span>
+              <span>
+                {isEs
+                  ? "Solana Devnet · Demo educativa y de hackathon (no auditada en mainnet)"
+                  : "Solana Devnet · Hackathon & research prototype (unaudited, Devnet only)"}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-4">
+              <a
+                href={explorerAddressUrl(FRONTEND_CONFIG.programId)}
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono text-zinc-400 hover:text-kipu-gold"
+              >
+                {truncateMiddle(FRONTEND_CONFIG.programId, 8, 6)}
+              </a>
+              <a
+                href={GITHUB_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-zinc-400 hover:text-kipu-text"
+              >
+                <GitRepoIcon className="h-3.5 w-3.5" />
+                <span>GitHub</span>
+              </a>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-4">
-            <a
-              href={explorerAddressUrl(FRONTEND_CONFIG.programId)}
-              target="_blank"
-              rel="noreferrer"
-              className="font-mono text-zinc-400 hover:text-kipu-gold"
-            >
-              {truncateMiddle(FRONTEND_CONFIG.programId, 8, 6)}
-            </a>
-            <a
-              href={GITHUB_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-zinc-400 hover:text-kipu-text"
-            >
-              <GitRepoIcon className="h-3.5 w-3.5" />
-              <span>GitHub</span>
-            </a>
-          </div>
+
+          <p className="border-t border-kipu-border/60 pt-3 text-[11px] italic text-zinc-500">
+            {isEs
+              ? "KipuVault — Inspirado en el antiguo sistema contable incaico del Quipu, llevando verificación determinística a agentes IA autónomos."
+              : "KipuVault — Inspired by the ancient Inca Quipu accounting system, bringing deterministic verification to autonomous AI agents."}
+          </p>
         </div>
       </footer>
     </div>

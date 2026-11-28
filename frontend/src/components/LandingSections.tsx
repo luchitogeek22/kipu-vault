@@ -36,7 +36,8 @@ export interface VerifiedDevnetProof {
   instruction: string;
   detailEs: string;
   detailEn: string;
-  amountLabel: string;
+  amountLabelEs: string;
+  amountLabelEn: string;
   signature: string;
   errorCode?: string;
 }
@@ -58,7 +59,8 @@ export const VERIFIED_DEVNET_PROOFS: VerifiedDevnetProof[] = [
       "Monto dentro del tope/tx y destino presente en la allowlist. SPL Token ejecutó la transferencia.",
     detailEn:
       "Amount within per-tx cap and destination listed in allowlist. SPL Token executed the transfer.",
-    amountLabel: "Dentro de reglas",
+    amountLabelEs: "Dentro de reglas",
+    amountLabelEn: "Within rules",
     signature:
       "3jbwLUqiVUA9qBxep2W3H39AwA1fP2P5nYi6kuzfGbbALrukXLTwZV8e5VpeTEzcrLa75TKBbYnJxuS7Nto2SLLU",
   },
@@ -74,7 +76,8 @@ export const VERIFIED_DEVNET_PROOFS: VerifiedDevnetProof[] = [
       "El agente intentó transferir por encima del tope por operación. Anchor abortó la instrucción antes de mover fondos.",
     detailEn:
       "Agent attempted to exceed the per-transaction cap. Anchor aborted the instruction before moving tokens.",
-    amountLabel: "0 Mock USDC",
+    amountLabelEs: "0 Mock USDC",
+    amountLabelEn: "0 Mock USDC",
     signature:
       "Gs6rkU8BYGvJkz69KPdZVdmcJamNiohzujVejEYeR7MBDxiaEzmBiFi7qaYw4tdqU9mND7Y8z1zNeivBnVt2zXW",
     errorCode: "AnchorError 6003",
@@ -91,7 +94,8 @@ export const VERIFIED_DEVNET_PROOFS: VerifiedDevnetProof[] = [
       "El destinatario no figuraba en la allowlist de la bóveda PDA. El programa rechazó la transferencia.",
     detailEn:
       "Destination wallet was absent from the PDA allowlist. The program rejected the transfer.",
-    amountLabel: "0 Mock USDC",
+    amountLabelEs: "0 Mock USDC",
+    amountLabelEn: "0 Mock USDC",
     signature:
       "34GvjgQLNENKSimYLt7DmQwgdKXdH3S3CLpstiqUWnhtqpRf4QdTCrxgRNzB4fNfZ4L2aFJNyk3VaXmv5Cq1baUx",
     errorCode: "AnchorError 6008",
@@ -108,7 +112,8 @@ export const VERIFIED_DEVNET_PROOFS: VerifiedDevnetProof[] = [
       "El dueño ejecutó el bloqueo de emergencia on-chain: toda operación del agente queda suspendida hasta reactivar.",
     detailEn:
       "Owner triggered on-chain emergency lock: all agent executions remain suspended until reactivated.",
-    amountLabel: "0 Mock USDC",
+    amountLabelEs: "0 Mock USDC",
+    amountLabelEn: "0 Mock USDC",
     signature:
       "4BqtaonLWhqu3ej592qU1eJ8aFcRpuP2fN5kCGuK5tdKzipyY5ysAKk9APyHncwbcquVUdZFdDNWL48mHR8w64vK",
   },
@@ -688,7 +693,7 @@ export function AuditCenterPreviewSection({
 
                   <div className="flex shrink-0 flex-wrap items-center gap-3 sm:flex-col sm:items-end">
                     <span className="font-mono text-xs font-medium text-zinc-300">
-                      {item.amountLabel}
+                      {isEs ? item.amountLabelEs : item.amountLabelEn}
                     </span>
                     <a
                       href={explorerTxUrl(item.signature)}

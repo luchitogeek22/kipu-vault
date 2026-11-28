@@ -21,23 +21,23 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://kipu-vault.vercel.app"),
-  title: "KipuVault — Guardrails On-Chain en Solana para Agentes de IA",
+  title: "KipuVault — On-Chain Guardrails on Solana for AI Agents",
   description:
-    "Bóveda inteligente en Solana Devnet que limita cuánto y a quién puede transferir tu agente de IA mediante límites on-chain, allowlist, Emergency Freeze y auditoría SHA-256.",
+    "Solana Devnet smart vault that caps how much and where your AI agent can spend using on-chain limits, strict allowlists, Emergency Freeze, and SHA-256 verification.",
   openGraph: {
-    title: "KipuVault — Tu agente es IA. El control sigue siendo tuyo.",
+    title: "KipuVault — Give your AI agent autonomy. Without giving up custody.",
     description:
-      "Reglas en contratos Anchor sobre Solana Devnet: tope por transacción, cupo diario 24h, allowlist estricta y Emergency Freeze.",
+      "Anchor smart-contract rules on Solana Devnet: per-tx cap, 24h rolling quota, strict allowlist, and 1-click Emergency Freeze.",
     url: "https://kipu-vault.vercel.app",
     siteName: "KipuVault",
-    locale: "es_PE",
+    locale: "en_US",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "KipuVault — Guardrails On-Chain para Agentes de IA en Solana",
+    title: "KipuVault — On-Chain Guardrails for AI Agents on Solana",
     description:
-      "Limita el radio de daño de agentes autónomos con políticas en Anchor, Emergency Freeze y pruebas verificables en Solana Explorer.",
+      "Contain autonomous agent blast radius with Anchor policies, Emergency Freeze, and verifiable Solana Explorer proofs.",
   },
 };
 
@@ -48,7 +48,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="es"
+      lang="en"
       className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} dark`}
     >
       <body className="min-h-screen bg-kipu-bg font-sans antialiased">
