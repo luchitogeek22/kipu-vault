@@ -20,9 +20,25 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "KipuVault — Solana Smart Vault + AI Copilot",
+  metadataBase: new URL("https://kipu-vault.vercel.app"),
+  title: "KipuVault — Guardrails On-Chain en Solana para Agentes de IA",
   description:
-    "Bóveda inteligente en Solana Devnet con guardrails on-chain que limitan el radio de daño de un agente de IA.",
+    "Bóveda inteligente en Solana Devnet que limita cuánto y a quién puede transferir tu agente de IA mediante límites on-chain, allowlist, Emergency Freeze y auditoría SHA-256.",
+  openGraph: {
+    title: "KipuVault — Tu agente es IA. El control sigue siendo tuyo.",
+    description:
+      "Reglas en contratos Anchor sobre Solana Devnet: tope por transacción, cupo diario 24h, allowlist estricta y Emergency Freeze.",
+    url: "https://kipu-vault.vercel.app",
+    siteName: "KipuVault",
+    locale: "es_PE",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "KipuVault — Guardrails On-Chain para Agentes de IA en Solana",
+    description:
+      "Limita el radio de daño de agentes autónomos con políticas en Anchor, Emergency Freeze y pruebas verificables en Solana Explorer.",
+  },
 };
 
 export default function RootLayout({
