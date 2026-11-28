@@ -26,6 +26,7 @@ interface PollarBridgeValue {
   solanaAddress: string | null;
   providerLabel: string | null;
   openLoginModal: () => void;
+  createWallet: () => Promise<void>;
   openWalletBalanceModal: () => void;
   openSendModal: () => void;
   openReceiveModal: () => void;
@@ -46,6 +47,7 @@ const DEFAULT_BRIDGE: PollarBridgeValue = {
   solanaAddress: null,
   providerLabel: null,
   openLoginModal: () => {},
+  createWallet: async () => {},
   openWalletBalanceModal: () => {},
   openSendModal: () => {},
   openReceiveModal: () => {},
@@ -81,6 +83,9 @@ function PollarBridgeInner({ children }: { children: React.ReactNode }) {
       solanaAddress: solWallet?.address ?? null,
       providerLabel: solWallet?.provider ?? null,
       openLoginModal: pollar.openLoginModal,
+      createWallet: async () => {
+        await pollar.createWallet();
+      },
       openWalletBalanceModal: pollar.openWalletBalanceModal,
       openSendModal: pollar.openSendModal,
       openReceiveModal: pollar.openReceiveModal,
@@ -144,6 +149,7 @@ export function PollarPayCard({
 }: PollarPayCardProps) {
   const pollar = usePollarBridge();
   const [copiedAddr, setCopiedAddr] = useState(false);
+  const [creatingWallet, setCreatingWallet] = useState(false);
   const [payDestination, setPayDestination] = useState(demoRecipientAddress);
   const [paySolAmount, setPaySolAmount] = useState("0.001");
   const [payTokenMode, setPayTokenMode] = useState<"SOL" | "SPL">("SOL");
@@ -348,10 +354,30 @@ export function PollarPayCard({
                 </div>
               </>
             ) : (
-              <p className="mt-1 text-[11px] text-zinc-300">
-                Sesión iniciada. Habilita Solana en dashboard.pollar.xyz para ver
-                tu dirección SPL/SOL.
-              </p>
+              <div className="mt-2 space-y-2">
+                <p className="text-[11px] text-zinc-300">
+                  Sesión iniciada. Si no ves tu dirección Solana, habilita{" "}
+                  <strong>Solana</strong> en Pollar Dashboard o genera la wallet
+                  ahora:
+                </p>
+                {!pollar.hasWallet && (
+                  <button
+                    type="button"
+                    disabled={creatingWallet}
+                    onClick={async () => {
+                      setCreatingWallet(true);
+                      try {
+                        await pollar.createWallet();
+                      } finally {
+                        setCreatingWallet(false);
+                      }
+                    }}
+                    className="rounded-lg border border-kipu-gold/50 bg-kipu-gold/15 px-3 py-1.5 text-[11px] font-semibold text-kipu-gold transition hover:bg-kipu-gold/25 disabled:opacity-50"
+                  >
+                    {creatingWallet ? "Creando wallet..." : "Crear wallet Solana ahora"}
+                  </button>
+                )}
+              </div>
             )}
           </div>
 
