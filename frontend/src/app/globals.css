@@ -65,8 +65,29 @@ body {
   }
 }
 
+@keyframes kipuFlowTravel {
+  0% {
+    left: 0%;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% - 8px);
+    opacity: 0;
+  }
+}
+
 .kipu-travel-dot {
   animation: kipuPulseTravel 2.2s ease-in-out infinite;
+}
+
+.kipu-flow-dot {
+  animation: kipuFlowTravel 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 .kipu-radar-sweep {
@@ -74,9 +95,35 @@ body {
   animation: kipuRadarSweep 7s linear infinite;
 }
 
+.kipu-reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.kipu-reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
   .kipu-travel-dot,
+  .kipu-flow-dot,
   .kipu-radar-sweep {
     animation: none;
+  }
+  .kipu-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
   }
 }
