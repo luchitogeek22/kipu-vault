@@ -436,12 +436,29 @@ export function WelcomeScreen({
 
   const handleCopySnippet = async () => {
     try {
-      await navigator.clipboard.writeText(CODE_SNIPPET);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(CODE_SNIPPET);
+      } else {
+        throw new Error("Clipboard API unavailable");
+      }
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
     } catch {
-      setCopied(false);
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = CODE_SNIPPET;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        setCopied(true);
+      } catch {
+        setCopied(false);
+      }
     }
+    window.setTimeout(() => setCopied(false), 1800);
   };
 
   const destinationAddress =
@@ -493,9 +510,9 @@ export function WelcomeScreen({
   }
 
   return (
-    <div className="min-h-screen bg-kipu-bg text-zinc-100">
+    <div className="min-h-screen overflow-x-hidden bg-kipu-bg text-zinc-100">
       {/* Top minimal landing bar */}
-      <header className="sticky top-0 z-30 border-b border-kipu-border bg-kipu-bg/95 backdrop-blur">
+      <header className="border-b border-kipu-border bg-kipu-bg/95">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-kipu-gold/50 bg-kipu-gold/15 text-kipu-gold">
@@ -568,7 +585,7 @@ export function WelcomeScreen({
         {/* Hero + Interactive Sim + Real On-Chain Block Proof */}
         <section className="grid items-start gap-8 lg:grid-cols-12 lg:gap-10">
           {/* Left Hero */}
-          <div className="space-y-5 lg:col-span-6">
+          <div className="min-w-0 space-y-5 lg:col-span-6">
             <div className="inline-flex items-center gap-2 rounded-full border border-kipu-gold/45 bg-kipu-gold/10 px-3 py-1 text-xs font-semibold text-amber-200">
               <span className="h-1.5 w-1.5 rounded-full bg-kipu-gold" />
               {t.heroBadge}
@@ -677,7 +694,7 @@ export function WelcomeScreen({
           </div>
 
           {/* Right Interactive Card */}
-          <div className="lg:col-span-6">
+          <div className="min-w-0 lg:col-span-6">
             <div
               aria-label={t.simTitle}
               className="kipu-card-glow rounded-2xl border border-kipu-border p-5"
@@ -697,6 +714,7 @@ export function WelcomeScreen({
               <div className="mb-3 grid grid-cols-3 gap-2">
                 <button
                   type="button"
+                  aria-pressed={activeTab === "allowed"}
                   onClick={() => applyTab("allowed")}
                   className={`inline-flex items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-semibold transition ${
                     activeTab === "allowed"
@@ -709,6 +727,7 @@ export function WelcomeScreen({
                 </button>
                 <button
                   type="button"
+                  aria-pressed={activeTab === "blocked"}
                   onClick={() => applyTab("blocked")}
                   className={`inline-flex items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-semibold transition ${
                     activeTab === "blocked"
@@ -721,6 +740,7 @@ export function WelcomeScreen({
                 </button>
                 <button
                   type="button"
+                  aria-pressed={activeTab === "freeze"}
                   onClick={() => applyTab("freeze")}
                   className={`inline-flex items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-semibold transition ${
                     activeTab === "freeze"
@@ -1017,7 +1037,7 @@ export function WelcomeScreen({
 
         {/* Brand story (Quipu) + Developer Integration Snippet */}
         <section className="grid gap-4 lg:grid-cols-12">
-          <div className="kipu-card-glow flex flex-col justify-between rounded-xl border border-kipu-gold/35 p-5 lg:col-span-5">
+          <div className="kipu-card-glow flex min-w-0 flex-col justify-between rounded-xl border border-kipu-gold/35 p-5 lg:col-span-5">
             <div>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-kipu-gold/40 bg-kipu-gold/10 px-2.5 py-0.5 text-xs font-semibold text-amber-200">
                 <FileSearch className="h-3.5 w-3.5" />
@@ -1036,7 +1056,7 @@ export function WelcomeScreen({
             </div>
           </div>
 
-          <div className="kipu-card-glow rounded-xl border border-kipu-border p-5 lg:col-span-7">
+          <div className="kipu-card-glow min-w-0 rounded-xl border border-kipu-border p-5 lg:col-span-7">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Code2 className="h-4 w-4 text-kipu-gold" />
@@ -1054,7 +1074,7 @@ export function WelcomeScreen({
               </button>
             </div>
             <p className="mb-3 text-xs text-zinc-200">{t.devSub}</p>
-            <pre className="overflow-x-auto rounded-lg border border-kipu-border bg-kipu-bg p-3 font-mono text-xs leading-relaxed text-emerald-200">
+            <pre className="w-full max-w-full overflow-x-auto rounded-lg border border-kipu-border bg-kipu-bg p-3 font-mono text-xs leading-relaxed text-emerald-200">
               <code>{CODE_SNIPPET}</code>
             </pre>
           </div>
