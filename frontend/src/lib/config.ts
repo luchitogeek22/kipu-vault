@@ -19,4 +19,5 @@ export const FRONTEND_CONFIG = {
   demoAttacker:
     process.env.NEXT_PUBLIC_DEMO_ATTACKER ||
     "AKSZ5fvbe5rG7FeGqPKca5h1v3TDd8YJ1gjfFZ1SVBW1",
+  pollarPublishableKey: process.env.NEXT_PUBLIC_POLLAR_PUBLISHABLE_KEY || "",
 } as const;

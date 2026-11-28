@@ -57,6 +57,7 @@ import { ProductTour } from "./ProductTour";
 import { DashboardOverview } from "./DashboardOverview";
 import { HelpDrawer } from "./HelpDrawer";
 import { SidebarNav } from "./SidebarNav";
+import { PollarPayCard } from "./PollarIntegration";
 
 export function KipuDashboard() {
   const { connection } = useConnection();
@@ -770,7 +771,7 @@ export function KipuDashboard() {
             />
           </div>
 
-          <div id="sec-config" className="lg:col-span-4">
+          <div id="sec-config" className="flex flex-col gap-3 lg:col-span-4">
             <PolicyPanel
               mintInput={mintInput}
               onChangeMintInput={setMintInput}
@@ -789,6 +790,13 @@ export function KipuDashboard() {
               freezing={freezing}
               onToggleFreeze={handleToggleFreeze}
               experienceLevel={experienceLevel}
+            />
+
+            <PollarPayCard
+              demoRecipientAddress={demoRecipientAddress}
+              onSelectAsDemoRecipient={setDemoRecipientAddress}
+              vaultAddress={vault?.address ?? null}
+              mintAddress={mintInput}
             />
           </div>
         </div>

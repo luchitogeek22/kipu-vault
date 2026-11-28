@@ -114,6 +114,16 @@ Squads es infraestructura multisig de propósito general y complementaria; **Kip
 
 ---
 
+## Integración con Pollar SDK (`@pollar/react` + `@pollar/core`)
+
+Para resolver el onboarding móvil sin extensión de navegador y habilitar pagos en Solana sin fricción, **KipuVault** integra el SDK de Pollar ([`frontend/src/components/PollarIntegration.tsx`](frontend/src/components/PollarIntegration.tsx)):
+
+1. **Onboarding sin extensión (`Email / Google`):** Al configurar `NEXT_PUBLIC_POLLAR_PUBLISHABLE_KEY` (obtenida desde `https://dashboard.pollar.xyz` con Solana habilitado), `<PollarProvider>` se activa automáticamente en [`SolanaProviders.tsx`](frontend/src/components/SolanaProviders.tsx). En navegadores móviles sin Phantom instalada (o desde el panel **`Pollar Pay & Wallet`**), el usuario inicia sesión y obtiene una wallet Solana en segundos.
+2. **Flujo agente / proveedor en KipuVault:** Con 1 clic (`Usar como destino`), la dirección Solana generada por Pollar se asigna como destinatario en la UI/Allowlist para que el agente IA ejecute pagos controlados dentro de las reglas on-chain de `VaultState`.
+3. **Pagos Solana vía Pollar SDK:** Desde **`Pollar Pay & Wallet`**, la app expone los modales nativos de Pollar (`Balance`, `Recibir`, `Historial`, `Modal Pollar`) y un envío directo mediante `sendPayment({ chain: "SOLANA", destination, amount, mint })` para transferir SOL o `Mock USDC` SPL en Devnet con verificación directa en Solana Explorer.
+
+---
+
 ## Checklist de verificación (`SPEC.md` §1 y §9)
 
 - [x] **Programa Anchor y 20 tests LiteSVM (`programs/kipu_vault`, `tests/kipu_vault.ts`)**: `VaultState`, 8 instrucciones, orden determinista 1–11 en `agent_execute`, 14 `KipuError` (`6000`–`6013`); `anchor build`, `anchor keys sync`, `target/idl/kipu_vault.json` y `20 passing` verificados en CI (GitHub Actions run `45446212361`).
