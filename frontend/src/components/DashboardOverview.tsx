@@ -278,7 +278,7 @@ export function DashboardOverview({
           </div>
 
           {/* 3-Column TrustScan Security Gauges: Threat Radar | Risk Score Arc | Vault Overview + Guardrails */}
-          {loadingVault ? (
+          {loadingVault && !vault ? (
             <div className="grid gap-3 lg:grid-cols-3">
               <SkeletonBlock className="h-64 w-full" />
               <SkeletonBlock className="h-64 w-full" />

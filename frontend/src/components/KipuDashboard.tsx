@@ -150,39 +150,48 @@ export function KipuDashboard() {
     };
   }, []);
 
-  const refreshVault = useCallback(async () => {
-    if (!publicKey || !mintInput.trim()) {
-      setVault(null);
-      return;
-    }
-    let mintPk: PublicKey;
-    try {
-      mintPk = new PublicKey(mintInput.trim());
-    } catch {
-      setVault(null);
-      return;
-    }
-
-    setLoadingVault(true);
-    try {
-      const vaultPda = deriveVaultPda(publicKey, mintPk);
-      const state = await fetchVaultStateOnChain(connection, vaultPda);
-      setVault(state);
-      if (state && state.allowedRecipients[0] && !demoRecipientAddress) {
-        setDemoRecipientAddress(state.allowedRecipients[0]);
+  const refreshVault = useCallback(
+    async (silent = false) => {
+      if (!publicKey || !mintInput.trim()) {
+        setVault(null);
+        return;
       }
-    } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : "Error leyendo VaultState";
-      setBannerError(humanizeUiError(msg));
-    } finally {
-      setLoadingVault(false);
-    }
-  }, [connection, demoRecipientAddress, mintInput, publicKey]);
+      let mintPk: PublicKey;
+      try {
+        mintPk = new PublicKey(mintInput.trim());
+      } catch {
+        setVault(null);
+        return;
+      }
+
+      if (!silent) {
+        setLoadingVault(true);
+      }
+      try {
+        const vaultPda = deriveVaultPda(publicKey, mintPk);
+        const state = await fetchVaultStateOnChain(connection, vaultPda);
+        setVault(state);
+        if (state && state.allowedRecipients[0] && !demoRecipientAddress) {
+          setDemoRecipientAddress(state.allowedRecipients[0]);
+        }
+      } catch (err) {
+        if (!silent) {
+          const msg =
+            err instanceof Error ? err.message : "Error leyendo VaultState";
+          setBannerError(humanizeUiError(msg));
+        }
+      } finally {
+        if (!silent) {
+          setLoadingVault(false);
+        }
+      }
+    },
+    [connection, demoRecipientAddress, mintInput, publicKey]
+  );
 
   // Refresh vault when owner + mint changes + live subscription + 3s fallback polling
   useEffect(() => {
-    void refreshVault();
+    void refreshVault(false);
     if (!publicKey || !mintInput.trim()) return;
 
     let mintPk: PublicKey;
@@ -198,7 +207,7 @@ export function KipuDashboard() {
       subId = connection.onAccountChange(
         vaultPda,
         () => {
-          void refreshVault();
+          void refreshVault(true);
         },
         "confirmed"
       );
@@ -207,7 +216,7 @@ export function KipuDashboard() {
     }
 
     const pollId = setInterval(() => {
-      void refreshVault();
+      void refreshVault(true);
     }, 3000);
 
     return () => {
